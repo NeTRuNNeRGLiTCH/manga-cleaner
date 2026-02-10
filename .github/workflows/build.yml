@@ -2,17 +2,20 @@ name: Build Release EXE
 on:
   push:
     tags:
-      - 'v*' # Triggers whenever you push a tag like v2.0.0
+      - 'v*'
 
 jobs:
   build:
     runs-on: windows-latest
+    permissions: # Added for safety to ensure the token can write to releases
+      contents: write
     steps:
       - uses: actions/checkout@v3
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: '3.12'
       
       - name: Install Dependencies
         run: |
@@ -24,11 +27,11 @@ jobs:
         run: pyinstaller MangaCleaner.spec
 
       - name: Zip Release
-        run: Compress-Archive -Path dist/TitanMangaStudio -DestinationPath TitanMangaStudio_v2.zip
+        run: Compress-Archive -Path dist/TitanMangaStudio -DestinationPath TitanMangaStudio_${{ github.ref_name }}.zip
 
       - name: Upload to Release
         uses: softprops/action-gh-release@v1
         with:
-          files: TitanMangaStudio_v2.zip
+          files: TitanMangaStudio_${{ github.ref_name }}.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
