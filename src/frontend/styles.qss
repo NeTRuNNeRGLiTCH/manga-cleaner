@@ -1,0 +1,88 @@
+* {
+    font-family: "Segoe UI";
+    font-size: 12px;
+}
+
+QMainWindow {
+    background-color: #0f0f12;
+}
+
+#NavBar {
+    background-color: #16161d;
+    border-bottom: 1px solid #2a2a35;
+}
+
+#TitleLabel {
+    color: #00d4ff;
+    font-size: 14px;
+    font-weight: bold;
+    letter-spacing: 2px;
+}
+
+#SidePanel {
+    background-color: #16161d;
+    border-left: 1px solid #2a2a35;
+    border-right: 1px solid #2a2a35;
+}
+
+QLabel {
+    color: #e0e0e0;
+}
+
+/* BUTTONS */
+QPushButton {
+    background-color: #252530;
+    color: #ffffff;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+QPushButton:hover {
+    background-color: #323245;
+}
+
+QPushButton:checked {
+    background-color: #00d4ff;
+    color: #000000;
+}
+
+#PrimaryBtn {
+    background-color: #00d4ff;
+    color: #000000;
+}
+
+#PrimaryBtn:hover {
+    background-color: #00b4d8;
+}
+
+/* PROGRESS BAR */
+QProgressBar {
+    background-color: #0a0a0c;
+    border: 1px solid #2a2a35;
+    border-radius: 6px;
+    text-align: center;
+    color: transparent;
+}
+
+QProgressBar::chunk {
+    background-color: #00d4ff;
+    border-radius: 5px;
+}
+
+/* COMBO & SLIDER */
+QComboBox {
+    background-color: #252530;
+    color: white;
+    padding: 5px;
+    border-radius: 3px;
+}
+
+QSlider::handle:horizontal {
+    background: #00d4ff;
+    width: 14px;
+    border-radius: 7px;
+    margin: -5px 0;
+}
