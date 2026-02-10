@@ -1,7 +1,7 @@
-# 🌌 TITAN MANGA STUDIO v2.0.0
+# 🌌 MANGA CLEANER v2.0.0
 **High-Performance AI-Powered Manga Restoration Suite**
 
-Titan Manga Studio is a professional desktop application engineered for high-fidelity manga scanlation and restoration. Version 2.0.0 introduces a modular architecture and a specialized tiling engine designed for 4K page processing.
+Manga Cleaner is a professional desktop application engineered for high-fidelity manga scanlation and restoration. Version 2.0.0 introduces a modular architecture and a specialized tiling engine designed for 4K page processing.
 
 ## 🖥️ Studio Preview
 ![UI Preview](assets/ui.png)
