@@ -3,14 +3,14 @@ import os
 from PyInstaller.utils.hooks import collect_all
 
 #////////////////////////#
-#  COLLECT AI BINARIES   #
+#  STRICT DEPENDENCIES   #
 #////////////////////////#
 datas = [('assets', 'assets'), ('src/frontend/styles.qss', 'src/frontend')]
 binaries = []
-hiddenimports = ['simple_lama_inpainting', 'easyocr', 'torch', 'cv2', 'PIL', 'pywin32']
+hiddenimports = ['PySide6', 'PySide6.QtCore', 'PySide6.QtGui', 'PySide6.QtWidgets', 'simple_lama_inpainting', 'pywin32']
 
-# Explicitly collect the heavy lifters
-for lib in ['easyocr', 'torch', 'cv2', 'scipy', 'skimage']:
+# Explicitly collect EVERYTHING for the core libraries
+for lib in ['PySide6', 'easyocr', 'torch', 'cv2', 'scipy', 'skimage']:
     tmp_ret = collect_all(lib)
     datas += tmp_ret[0]
     binaries += tmp_ret[1]
@@ -18,14 +18,14 @@ for lib in ['easyocr', 'torch', 'cv2', 'scipy', 'skimage']:
 
 a = Analysis(
     ['main.py'],
-    pathex=[],
+    pathex=[os.getcwd()], # Force current directory into path
     binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=['matplotlib', 'notebook', 'jedi', 'Tkinter'], 
+    excludes=['matplotlib', 'notebook', 'jedi', 'Tkinter', 'unittest'], 
     noarchive=False,
     optimize=2,
 )
@@ -35,12 +35,12 @@ exe = EXE(
     pyz,
     a.scripts,
     [],
-    exclude_binaries=True, # We want the folder, not a single file
+    exclude_binaries=True,
     name='MangaCleaner',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=False, # DISABLED FOR GITHUB COMPATIBILITY
+    upx=False, 
     console=False,
     icon=['assets/icon.ico'],
 )
