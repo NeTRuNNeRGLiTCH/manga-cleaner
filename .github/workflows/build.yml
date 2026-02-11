@@ -7,7 +7,7 @@ on:
 jobs:
   build:
     runs-on: windows-latest
-    permissions: # Added for safety to ensure the token can write to releases
+    permissions:
       contents: write
     steps:
       - uses: actions/checkout@v3
@@ -15,19 +15,21 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.12'
-      
-      - name: Install Dependencies
+          python-version: '3.10' # More stable for AI builds
+
+      - name: Install AI Core (Lighter CPU version)
         run: |
           python -m pip install --upgrade pip
+          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
           pip install -r requirements.txt
           pip install pyinstaller
-          
-      - name: Build EXE
+
+      - name: Build Studio
         run: pyinstaller MangaCleaner.spec
 
-      - name: Zip Release
-        run: Compress-Archive -Path dist/TitanMangaStudio -DestinationPath TitanMangaStudio_${{ github.ref_name }}.zip
+      - name: Zip Studio Folder
+        # We MUST use -Recurse to catch all the AI DLLs
+        run: Compress-Archive -Path dist/TitanMangaStudio/* -DestinationPath TitanMangaStudio_${{ github.ref_name }}.zip
 
       - name: Upload to Release
         uses: softprops/action-gh-release@v1
