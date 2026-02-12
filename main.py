@@ -24,7 +24,6 @@ def qt_message_handler(mode, context, message):
     if any(n in message for n in noise):
         return # Ignore this message
     
-    # Otherwise, let the message pass through (or ignore all warnings if preferred)
     if "Warning" in str(mode):
         return
 
@@ -33,18 +32,18 @@ def qt_message_handler(mode, context, message):
 #////////////////////////#
 
 def main():
-    # Install the filter BEFORE creating the QApplication
     qInstallMessageHandler(qt_message_handler)
 
     app = QApplication(sys.argv)
     
-    # Set a robust default font
     app.setFont(QFont("Segoe UI", 9))
     app.setApplicationName("Titan Manga Cleaner")
     
     # Load diagnostic services
     logger = setup_logger()
     logger.info("Titan Studio Initializing...")
+    
+    
 
     # Load UI Styles
     qss_path = os.path.join("src", "frontend", "styles.qss")

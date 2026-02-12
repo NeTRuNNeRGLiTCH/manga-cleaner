@@ -2,11 +2,22 @@
 import os
 from PyInstaller.utils.hooks import collect_all
 
-datas = [('src/frontend/styles.qss', 'src/frontend')] # Removed 'assets' models if any
+datas = [('src/frontend/styles.qss', 'src/frontend')]
 binaries = []
-hiddenimports = ['PySide6.QtCore', 'PySide6.QtGui', 'PySide6.QtWidgets', 'simple_lama_inpainting', 'pywin32', 'numpy', 'packaging']
+hiddenimports = [
+    'PySide6.QtCore', 
+    'PySide6.QtGui', 
+    'PySide6.QtWidgets', 
+    'simple_lama_inpainting', 
+    'pywin32', 
+    'numpy', 
+    'packaging', 
+    'unittest', 
+    'cv2',
+    'skimage.filters.rank.core_cy'
+]
 
-for lib in ['easyocr', 'torch', 'cv2', 'scipy']:
+for lib in ['easyocr', 'torch', 'cv2', 'scipy', 'skimage']:
     tmp_ret = collect_all(lib)
     datas += tmp_ret[0]
     binaries += tmp_ret[1]
@@ -21,13 +32,8 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[
-        'matplotlib', 'notebook', 'jedi', 'Tkinter', 'IPython', 
-        'torch.testing', 'torch.distributions', 'torch.ao', 
-        'torch.nn.modules.export', 'unittest'
-    ], 
+    excludes=['matplotlib', 'notebook', 'jedi', 'Tkinter', 'IPython', 'torch.testing'], 
     noarchive=False,
-    optimize=1,
 )
 pyz = PYZ(a.pure)
 
@@ -39,9 +45,9 @@ exe = EXE(
     name='MangaCleaner',
     debug=False,
     bootloader_ignore_signals=False,
-    strip=True, # STRIP symbols to save space
+    strip=False,
     upx=False, 
-    console=False,
+    console=False, # Set to True if you want a debug window to appear
     icon=['assets/icon.ico'],
 )
 
@@ -50,7 +56,7 @@ coll = COLLECT(
     a.binaries,
     a.zipfiles,
     a.datas,
-    strip=True,
+    strip=False,
     upx=False,
     name='TitanMangaStudio',
 )

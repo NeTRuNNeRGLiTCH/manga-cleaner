@@ -86,7 +86,7 @@ class ImageProcessor:
             res_np = np.array(res_pil).astype(np.float32)
 
             if res_np.shape[:2] != img_tile.shape[:2]:
-                res_np = cv2.resize(res_np, (img_tile.shape[1], img_tile.shape[0]), interpolation=cv2.INTER_LANCZOS4)
+                res_np = cv2.resize(res_np, (img_tile.shape[1], img_tile.shape[0]), interpolation=4)
 
             if len(cv_img.shape) == 2:
                 res_np = cv2.cvtColor(res_np.astype(np.uint8), cv2.COLOR_RGB2GRAY).astype(np.float32)
