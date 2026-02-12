@@ -1,4 +1,4 @@
-name: Build Release EXE
+name: Build Release EXE (GPU Version)
 on:
   push:
     tags:
@@ -10,30 +10,42 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.12'
+          cache: 'pip'
 
-      - name: Install Universal AI Core (CUDA 12.1)
+      - name: Install Dependencies (GPU CUDA 12.1)
         run: |
           python -m pip install --upgrade pip
-          pip install torch==2.1.0 torchvision==0.16.0 --index-url https://download.pytorch.org/whl/cu121
+          pip install torch==2.5.1 torchvision==0.20.1 --index-url https://download.pytorch.org/whl/cu121
           pip install -r requirements.txt
-          pip install pyinstaller
+          # Force fix the 'Golden Versions' we verified locally
+          pip install pillow==9.5.0 numpy==1.26.4 opencv-python==4.8.1.78
 
-      - name: Build Studio
+      - name: Build Studio EXE
         run: pyinstaller --noconfirm MangaCleaner.spec
 
-      - name: 7-Zip Studio Folder (Ultra Compression)
+      - name: Compress and Split (3 Parts)
         run: |
-          7z a -tzip -mx9 TitanMangaStudio_${{ github.ref_name }}.zip ./dist/TitanMangaStudio/*
+          7z a -v900m TitanMangaStudio_${{ github.ref_name }}_GPU_part.7z ./dist/TitanMangaStudio/*
 
-      - name: Upload to Release
-        uses: softprops/action-gh-release@v1
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          files: TitanMangaStudio_${{ github.ref_name }}.zip
+          name: Titan Manga Studio ${{ github.ref_name }} (GPU Edition)
+          body: |
+            ### GPU Version Release
+            **Instructions:**
+            1. Download all 3 parts.
+            2. Keep them in the same folder.
+            3. Right-click **Part 1** and select **7-Zip -> Extract Here**.
+          files: |
+            TitanMangaStudio_${{ github.ref_name }}_GPU_part.7z.001
+            TitanMangaStudio_${{ github.ref_name }}_GPU_part.7z.002
+            TitanMangaStudio_${{ github.ref_name }}_GPU_part.7z.003
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
