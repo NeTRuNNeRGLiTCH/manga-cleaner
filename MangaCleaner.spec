@@ -4,7 +4,17 @@ from PyInstaller.utils.hooks import collect_all
 
 datas = [('assets', 'assets'), ('src/frontend/styles.qss', 'src/frontend')]
 binaries = []
-hiddenimports = ['PySide6.QtCore', 'PySide6.QtGui', 'PySide6.QtWidgets', 'simple_lama_inpainting', 'pywin32', 'numpy', 'packaging']
+hiddenimports = [
+    'PySide6.QtCore', 
+    'PySide6.QtGui', 
+    'PySide6.QtWidgets', 
+    'simple_lama_inpainting', 
+    'pywin32', 
+    'numpy', 
+    'packaging',
+    'torch.utils.data', # Necessary for AI data loading
+    'nvidia' 
+]
 
 for lib in ['easyocr', 'torch', 'cv2', 'scipy']:
     tmp_ret = collect_all(lib)
