@@ -2,19 +2,9 @@
 import os
 from PyInstaller.utils.hooks import collect_all
 
-datas = [('assets', 'assets'), ('src/frontend/styles.qss', 'src/frontend')]
+datas = [('src/frontend/styles.qss', 'src/frontend')] # Removed 'assets' models if any
 binaries = []
-hiddenimports = [
-    'PySide6.QtCore', 
-    'PySide6.QtGui', 
-    'PySide6.QtWidgets', 
-    'simple_lama_inpainting', 
-    'pywin32', 
-    'numpy', 
-    'packaging',
-    'torch.utils.data', # Necessary for AI data loading
-    'nvidia' 
-]
+hiddenimports = ['PySide6.QtCore', 'PySide6.QtGui', 'PySide6.QtWidgets', 'simple_lama_inpainting', 'pywin32', 'numpy', 'packaging']
 
 for lib in ['easyocr', 'torch', 'cv2', 'scipy']:
     tmp_ret = collect_all(lib)
@@ -31,8 +21,11 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    # REMOVED 'unittest' from excludes below
-    excludes=['matplotlib', 'notebook', 'jedi', 'Tkinter', 'IPython'], 
+    excludes=[
+        'matplotlib', 'notebook', 'jedi', 'Tkinter', 'IPython', 
+        'torch.testing', 'torch.distributions', 'torch.ao', 
+        'torch.nn.modules.export', 'unittest'
+    ], 
     noarchive=False,
     optimize=1,
 )
@@ -46,7 +39,7 @@ exe = EXE(
     name='MangaCleaner',
     debug=False,
     bootloader_ignore_signals=False,
-    strip=False,
+    strip=True, # STRIP symbols to save space
     upx=False, 
     console=False,
     icon=['assets/icon.ico'],
@@ -57,7 +50,7 @@ coll = COLLECT(
     a.binaries,
     a.zipfiles,
     a.datas,
-    strip=False,
+    strip=True,
     upx=False,
     name='TitanMangaStudio',
 )
