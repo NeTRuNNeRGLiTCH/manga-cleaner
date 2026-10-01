@@ -1,0 +1,360 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>qml;cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>qrc;rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Form Files">
+      <UniqueIdentifier>{99349809-55BA-4b9d-BF79-8FDBB0286EB3}</UniqueIdentifier>
+      <Extensions>ui</Extensions>
+    </Filter>
+    <Filter Include="Translation Files">
+      <UniqueIdentifier>{639EADAA-A684-42e4-A9AD-28FC9BCB8F7C}</UniqueIdentifier>
+      <Extensions>ts</Extensions>
+    </Filter>
+    <Filter Include="Source Files\engine">
+      <UniqueIdentifier>{111c7e55-9718-43ea-ac9d-84c2173076ae}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\core">
+      <UniqueIdentifier>{1b47e044-6ed0-4378-8996-a071d5970a1b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\studio">
+      <UniqueIdentifier>{3d0ce440-6917-4a23-b370-21afdbc3674d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\storage">
+      <UniqueIdentifier>{4279b61e-f484-44a0-969f-763801a79adf}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\diagnostics">
+      <UniqueIdentifier>{90782ee0-8f69-4077-9e9f-2b6b349ce868}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\studio\widgets">
+      <UniqueIdentifier>{ca22afbf-50ca-4dcc-961b-aef286eaeeca}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\studio\panels">
+      <UniqueIdentifier>{56db9a8d-1a56-4c4d-8f2c-767af3750414}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\studio\panels\bars">
+      <UniqueIdentifier>{4da26ee9-c13c-41a0-a05e-18ec8fd5208d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\studio\panels\tabs">
+      <UniqueIdentifier>{9720f99a-0e90-49fc-88b3-64c90d675461}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\studio\panels\topbar_actions">
+      <UniqueIdentifier>{c4a05743-8a95-4a6a-aeb4-fa8ff6512e29}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\studio\panels\topbar_actions\settings_controllers">
+      <UniqueIdentifier>{be67d975-0537-48e7-a2ea-16f225172b7b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\core\hardware">
+      <UniqueIdentifier>{b74c672a-2044-4c77-9c11-fa6009de5f9f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\core\state">
+      <UniqueIdentifier>{d3ea2e64-c618-4fbe-a8be-fd93fa11c23b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\core\pipeline">
+      <UniqueIdentifier>{2e4ba10c-92a8-4272-a212-e025b5929720}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\core\input">
+      <UniqueIdentifier>{8780b195-4f25-4847-a890-98f62e88fca3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\core\image_ops">
+      <UniqueIdentifier>{42f31f3f-d27c-43a9-a647-847b951a5745}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\engine\models">
+      <UniqueIdentifier>{a69a2a24-9de3-4e70-a042-d12fc40e7b69}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <QtRcc Include="axis_cleaner.qrc">
+      <Filter>Resource Files</Filter>
+    </QtRcc>
+    <QtMoc Include="axis_cleaner.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <ClCompile Include="axis_cleaner.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <None Include="axis_cleaner.ico">
+      <Filter>Resource Files</Filter>
+    </None>
+    <ResourceCompile Include="axis_cleaner.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\studio\panels\bars\left_toolbar.cpp">
+      <Filter>Source Files\studio\panels\bars</Filter>
+    </ClCompile>
+    <ClCompile Include="src\studio\panels\bars\right_ai_panel.cpp">
+      <Filter>Source Files\studio\panels\bars</Filter>
+    </ClCompile>
+    <ClCompile Include="src\studio\panels\bars\status_bar.cpp">
+      <Filter>Source Files\studio\panels\bars</Filter>
+    </ClCompile>
+    <ClCompile Include="src\studio\widgets\canvas_widget.cpp">
+      <Filter>Source Files\studio\widgets</Filter>
+    </ClCompile>
+    <ClCompile Include="src\studio\panels\tabs\gallery_tab.cpp">
+      <Filter>Source Files\studio\panels\tabs</Filter>
+    </ClCompile>
+    <ClCompile Include="src\studio\panels\tabs\wizard_tab.cpp">
+      <Filter>Source Files\studio\panels\tabs</Filter>
+    </ClCompile>
+    <ClCompile Include="src\studio\panels\tabs\transcript_tab.cpp">
+      <Filter>Source Files\studio\panels\tabs</Filter>
+    </ClCompile>
+    <ClCompile Include="src\studio\panels\tabs\studio_tab.cpp">
+      <Filter>Source Files\studio\panels\tabs</Filter>
+    </ClCompile>
+    <ClCompile Include="src\studio\panels\topbar_actions\about.cpp">
+      <Filter>Source Files\studio\panels\topbar_actions</Filter>
+    </ClCompile>
+    <ClCompile Include="src\studio\panels\topbar_actions\edit.cpp">
+      <Filter>Source Files\studio\panels\topbar_actions</Filter>
+    </ClCompile>
+    <ClCompile Include="src\studio\panels\topbar_actions\export.cpp">
+      <Filter>Source Files\studio\panels\topbar_actions</Filter>
+    </ClCompile>
+    <ClCompile Include="src\studio\panels\topbar_actions\file.cpp">
+      <Filter>Source Files\studio\panels\topbar_actions</Filter>
+    </ClCompile>
+    <ClCompile Include="src\studio\panels\topbar_actions\folder.cpp">
+      <Filter>Source Files\studio\panels\topbar_actions</Filter>
+    </ClCompile>
+    <ClCompile Include="src\studio\panels\topbar_actions\help.cpp">
+      <Filter>Source Files\studio\panels\topbar_actions</Filter>
+    </ClCompile>
+    <ClCompile Include="src\studio\panels\topbar_actions\settings.cpp">
+      <Filter>Source Files\studio\panels\topbar_actions</Filter>
+    </ClCompile>
+    <ClCompile Include="src\studio\panels\topbar_actions\view.cpp">
+      <Filter>Source Files\studio\panels\topbar_actions</Filter>
+    </ClCompile>
+    <ClCompile Include="src\studio\panels\bars\top_bar.cpp">
+      <Filter>Source Files\studio\panels\bars</Filter>
+    </ClCompile>
+    <ClCompile Include="src\studio\panels\topbar_actions\settings_controllers\models.cpp">
+      <Filter>Source Files\studio\panels\topbar_actions\settings_controllers</Filter>
+    </ClCompile>
+    <ClCompile Include="src\studio\panels\topbar_actions\settings_controllers\image.cpp">
+      <Filter>Source Files\studio\panels\topbar_actions\settings_controllers</Filter>
+    </ClCompile>
+    <ClCompile Include="src\studio\panels\topbar_actions\settings_controllers\system.cpp">
+      <Filter>Source Files\studio\panels\topbar_actions\settings_controllers</Filter>
+    </ClCompile>
+    <ClCompile Include="src\studio\panels\topbar_actions\settings_controllers\wizard.cpp">
+      <Filter>Source Files\studio\panels\topbar_actions\settings_controllers</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\hardware\system_scanner.cpp">
+      <Filter>Source Files\core\hardware</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\hardware\telemetry.cpp">
+      <Filter>Source Files\core\hardware</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\state\history_stack.cpp">
+      <Filter>Source Files\core\state</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\state\session_data.cpp">
+      <Filter>Source Files\core\state</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\pipeline\studio_worker.cpp">
+      <Filter>Source Files\core\pipeline</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\pipeline\task_queue.cpp">
+      <Filter>Source Files\core\pipeline</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\pipeline\batch_worker.cpp">
+      <Filter>Source Files\core\pipeline</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\pipeline\pipeline_manager.cpp">
+      <Filter>Source Files\core\pipeline</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\input\shortcut_mgr.cpp">
+      <Filter>Source Files\core\input</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\image_ops\cv_painter.cpp">
+      <Filter>Source Files\core\image_ops</Filter>
+    </ClCompile>
+    <ClCompile Include="src\engine\models\esrgan_engine.cpp">
+      <Filter>Source Files\engine\models</Filter>
+    </ClCompile>
+    <ClCompile Include="src\engine\models\textbpn_engine.cpp">
+      <Filter>Source Files\engine\models</Filter>
+    </ClCompile>
+    <ClCompile Include="src\diagnostics\logger.cpp">
+      <Filter>Source Files\diagnostics</Filter>
+    </ClCompile>
+    <ClCompile Include="src\storage\config_mgr.cpp">
+      <Filter>Source Files\storage</Filter>
+    </ClCompile>
+    <ClCompile Include="src\storage\psd_exporter.cpp">
+      <Filter>Source Files\storage</Filter>
+    </ClCompile>
+    <ClCompile Include="src\storage\workspace.cpp">
+      <Filter>Source Files\storage</Filter>
+    </ClCompile>
+    <ClCompile Include="src\engine\models\moebius_engine.cpp">
+      <Filter>Source Files\engine\models</Filter>
+    </ClCompile>
+    <ClCompile Include="src\engine\trt_arch_detector.cpp">
+      <Filter>Source Files\engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\engine\trt_runtime.cpp">
+      <Filter>Source Files\engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\engine\models\lama_engine.cpp">
+      <Filter>Source Files\engine\models</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\studio\style.qss">
+      <Filter>Header Files</Filter>
+    </None>
+    <None Include=".github\copilot-instructions.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\core\hardware\system_scanner.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\core\state\session_data.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\core\state\history_stack.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\core\pipeline\ai_types.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\core\pipeline\task_queue.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\core\image_ops\cv_painter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\core\image_ops\inpaint_router.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\engine\models\esrgan_engine.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\engine\models\textbpn_engine.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\diagnostics\logger.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\storage\config_mgr.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\storage\psd_exporter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\storage\workspace.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\engine\trt_arch_detector.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\engine\trt_runtime.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\engine\models\moebius_engine.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\engine\models\lama_engine.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <QtMoc Include="src\studio\panels\bars\status_bar.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="src\studio\panels\bars\left_toolbar.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="src\studio\panels\bars\top_bar.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="src\studio\panels\bars\right_ai_panel.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="src\studio\panels\tabs\studio_tab.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="src\studio\panels\tabs\wizard_tab.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="src\studio\panels\tabs\gallery_tab.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="src\studio\panels\tabs\transcript_tab.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="src\studio\widgets\canvas_widget.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="src\studio\panels\topbar_actions\file.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="src\studio\panels\topbar_actions\edit.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="src\studio\panels\topbar_actions\view.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="src\studio\panels\topbar_actions\folder.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="src\studio\panels\topbar_actions\export.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="src\studio\panels\topbar_actions\about.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="src\studio\panels\topbar_actions\settings.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="src\studio\panels\topbar_actions\settings_controllers\models.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="src\studio\panels\topbar_actions\settings_controllers\system.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="src\studio\panels\topbar_actions\settings_controllers\image.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="src\studio\panels\topbar_actions\settings_controllers\wizard.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="src\core\hardware\telemetry.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="src\core\pipeline\studio_worker.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="src\core\pipeline\batch_worker.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="src\core\pipeline\pipeline_manager.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="src\core\input\shortcut_mgr.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="src\studio\panels\topbar_actions\help.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+  </ItemGroup>
+</Project>

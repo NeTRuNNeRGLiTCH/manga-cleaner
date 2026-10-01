@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Axis Cleaner dependency paths - MACHINE-SPECIFIC, do not commit your copy.
+
+  1. Copy this file to axis_deps.props (same folder as axis_cleaner.vcxproj).
+  2. Adjust the paths below to where CUDA / cuDNN / TensorRT / OpenCV /
+     ImageMagick live on YOUR machine.
+  3. Qt is resolved by the Qt VS Tools extension via the QtInstall name
+     ("Qt_6.10.2") - configure it once in Extensions > Qt VS Tools > Qt Versions.
+-->
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <!-- NVIDIA stack (default SDK install locations) -->
+    <CUDA_PATH>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v13.3</CUDA_PATH>
+    <CUDA_VERSION>13.3</CUDA_VERSION>
+    <CUDNN_PATH>C:\Program Files\NVIDIA\CUDNN\v9.24</CUDNN_PATH>
+    <TRT_PATH>C:\Program Files\NVIDIA\TensorRT-11.2.1.2</TRT_PATH>
+
+    <!-- Everything else: OpenCV + ImageMagick under one root -->
+    <AxisDepsMSVC>C:\cpp_pkg</AxisDepsMSVC>
+  </PropertyGroup>
+</Project>

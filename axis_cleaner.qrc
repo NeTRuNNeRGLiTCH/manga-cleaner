@@ -1,0 +1,39 @@
+<RCC>
+    <qresource prefix="/axis_cleaner">
+        <file>assets/axis_cleaner.png</file>
+        <file>assets/icons/brush.svg</file>
+        <file>assets/icons/eraser.svg</file>
+        <file>assets/icons/hand.svg</file>
+        <file>assets/icons/lasso-select.svg</file>
+        <file>assets/icons/mouse-pointer-2.svg</file>
+        <file>assets/icons/paint-roller.svg</file>
+        <file>assets/icons/square.svg</file>
+        <file>assets/icons/wand-sparkles.svg</file>
+        <file>assets/icons/cpu.svg</file>
+        <file>assets/icons/export.svg</file>
+        <file>assets/icons/folder.svg</file>
+        <file>assets/icons/gpu.svg</file>
+        <file>assets/icons/ram.svg</file>
+        <file>assets/icons/vram.svg</file>
+        <file>assets/icons/dna.svg</file>
+        <file>assets/icons/images.svg</file>
+        <file>assets/icons/inpaint.svg</file>
+        <file>assets/icons/layers.svg</file>
+        <file>assets/icons/notebook.svg</file>
+        <file>assets/icons/ocr.svg</file>
+        <file>assets/icons/zap.svg</file>
+        <file>assets/animations/hourglass.gif</file>
+        <file>assets/animations/error.gif</file>
+        <file>assets/animations/idle.gif</file>
+        <file>assets/icons/wizard.svg</file>
+        <file>assets/icons/add.svg</file>
+        <file>assets/icons/trash.svg</file>
+        <file>assets/icons/copy.svg</file>
+        <file>assets/main.png</file>
+        <file>assets/icons/discord.svg</file>
+        <file>assets/icons/github.svg</file>
+        <file>assets/icons/patreon.svg</file>
+        <file>assets/binance.jpg</file>
+        <file>assets/icons/binance.svg</file>
+    </qresource>
+</RCC>

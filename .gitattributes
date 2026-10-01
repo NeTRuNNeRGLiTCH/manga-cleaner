@@ -1,0 +1,36 @@
+# Normalize line endings: LF in the repo, checked out per-OS defaults.
+* text=auto
+
+# Source & text — always LF in the repository
+*.cpp text
+*.h text
+*.md text
+*.qrc text
+*.rc text
+*.slnx text
+*.props text
+*.yaml text
+*.json text
+
+# Windows-only files that must keep CRLF
+*.bat text eol=crlf
+
+# Visual Studio / MSBuild XML
+*.vcxproj text
+*.vcxproj.filters text
+
+# Binary assets — never touch these
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg text
+*.engine binary
+*.trt binary
+*.onnx binary
+*.exe binary
+*.dll binary
+*.lib binary
+*.pdb binary
+*.obj binary

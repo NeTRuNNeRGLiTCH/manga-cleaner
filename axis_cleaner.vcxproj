@@ -1,0 +1,243 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="18.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{3CB21EAD-8FDA-4D66-BC53-B21B5766B3AF}</ProjectGuid>
+    <Keyword>QtVS_v304</Keyword>
+    <WindowsTargetPlatformVersion Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">10.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">10.0</WindowsTargetPlatformVersion>
+    <QtMsBuild Condition="'$(QtMsBuild)'=='' OR !Exists('$(QtMsBuild)\qt.targets')">$(MSBuildProjectDirectory)\QtMsBuild</QtMsBuild>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v143</PlatformToolset>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v143</PlatformToolset>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Condition="Exists('$(QtMsBuild)\qt_defaults.props')">
+    <Import Project="$(QtMsBuild)\qt_defaults.props" />
+  </ImportGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'" Label="QtSettings">
+    <QtInstall>Qt_6.10.2</QtInstall>
+    <QtModules>core;gui;widgets</QtModules>
+    <QtBuildConfig>debug</QtBuildConfig>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'" Label="QtSettings">
+    <QtInstall>Qt_6.10.2</QtInstall>
+    <QtModules>core;gui;widgets</QtModules>
+    <QtBuildConfig>release</QtBuildConfig>
+  </PropertyGroup>
+  <Target Name="QtMsBuildNotFound" BeforeTargets="CustomBuild;ClCompile" Condition="!Exists('$(QtMsBuild)\qt.targets') or !Exists('$(QtMsBuild)\qt.props')">
+    <Message Importance="High" Text="QtMsBuild: could not locate qt.targets, qt.props; project may not build correctly." />
+  </Target>
+  <ImportGroup Label="ExtensionSettings" />
+  <ImportGroup Label="Shared" />
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(QtMsBuild)\Qt.props" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(QtMsBuild)\Qt.props" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <!--
+    Dependency paths live in axis_deps.template.props (defaults = original dev
+    machine). On any other PC: copy it to axis_deps.props and adjust the paths
+    (see portability.md). Your axis_deps.props stays machine-local.
+  -->
+  <PropertyGroup>
+    <AxisDepsProps Condition="Exists('$(ProjectDir)axis_deps.props')">$(ProjectDir)axis_deps.props</AxisDepsProps>
+    <AxisDepsProps Condition="!Exists('$(ProjectDir)axis_deps.props')">$(ProjectDir)axis_deps.template.props</AxisDepsProps>
+  </PropertyGroup>
+  <Import Project="$(AxisDepsProps)" Condition="Exists('$(AxisDepsProps)')" />
+  <PropertyGroup>
+    <AxisDepsMSVC Condition="'$(AxisDepsMSVC)'==''">C:\cpp_pkg</AxisDepsMSVC>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(CUDA_PATH)\include;$(CUDNN_PATH)\include;$(TRT_PATH)\include;$(AxisDepsMSVC)\opencv\build\include;$(AxisDepsMSVC)\ImageMagick-7.1.2-Q16-HDRI\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <AdditionalLibraryDirectories>$(TRT_PATH)\lib;$(CUDNN_PATH)\lib\$(CUDA_VERSION)\x64;$(CUDA_PATH)\lib\x64;$(AxisDepsMSVC)\opencv\build\x64\vc16\lib;$(AxisDepsMSVC)\ImageMagick-7.1.2-Q16-HDRI\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>nvinfer_11.lib;nvinfer_plugin_11.lib;cudart.lib;cuda.lib;cudnn.lib;CORE_RL_Magick++_.lib;dxgi.lib;d3d12.lib;psapi.lib;CORE_RL_MagickCore_.lib;CORE_RL_MagickWand_.lib;opencv_world4120d.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(CUDA_PATH)\include;$(CUDNN_PATH)\include;$(TRT_PATH)\include;$(AxisDepsMSVC)\opencv\build\include;$(AxisDepsMSVC)\ImageMagick-7.1.2-Q16-HDRI\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <AdditionalLibraryDirectories>$(TRT_PATH)\lib;$(CUDNN_PATH)\lib\$(CUDA_VERSION)\x64;$(CUDA_PATH)\lib\x64;$(AxisDepsMSVC)\opencv\build\x64\vc16\lib;$(AxisDepsMSVC)\ImageMagick-7.1.2-Q16-HDRI\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>nvinfer_11.lib;nvinfer_plugin_11.lib;cudart.lib;cuda.lib;cudnn.lib;CORE_RL_Magick++_.lib;dxgi.lib;d3d12.lib;psapi.lib;CORE_RL_MagickCore_.lib;CORE_RL_MagickWand_.lib;opencv_world4120.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'" Label="Configuration">
+    <ClCompile>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'" Label="Configuration">
+    <ClCompile>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <!-- OpenMP: the TensorRT engine pack/unpack and DDIM math loops are parallelized with #pragma omp. -->
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <OpenMPSupport>true</OpenMPSupport>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <OpenMPSupport>true</OpenMPSupport>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="src\core\hardware\system_scanner.cpp" />
+    <ClCompile Include="src\core\hardware\telemetry.cpp" />
+    <ClCompile Include="src\core\image_ops\cv_painter.cpp" />
+    <ClCompile Include="src\core\input\shortcut_mgr.cpp" />
+    <ClCompile Include="src\core\pipeline\batch_worker.cpp" />
+    <ClCompile Include="src\core\pipeline\pipeline_manager.cpp" />
+    <ClCompile Include="src\core\pipeline\studio_worker.cpp" />
+    <ClCompile Include="src\core\pipeline\task_queue.cpp" />
+    <ClCompile Include="src\core\state\history_stack.cpp" />
+    <ClCompile Include="src\core\state\session_data.cpp" />
+    <ClCompile Include="src\diagnostics\logger.cpp" />
+    <ClCompile Include="src\engine\models\lama_engine.cpp" />
+    <ClCompile Include="src\engine\models\moebius_engine.cpp" />
+    <ClCompile Include="src\engine\models\textbpn_engine.cpp" />
+    <ClCompile Include="src\engine\trt_arch_detector.cpp" />
+    <ClCompile Include="src\engine\trt_runtime.cpp" />
+    <ClCompile Include="src\storage\config_mgr.cpp" />
+    <ClCompile Include="src\storage\psd_exporter.cpp" />
+    <ClCompile Include="src\storage\workspace.cpp" />
+    <ClCompile Include="src\studio\panels\bars\left_toolbar.cpp" />
+    <ClCompile Include="src\studio\panels\bars\right_ai_panel.cpp" />
+    <ClCompile Include="src\studio\panels\bars\status_bar.cpp" />
+    <ClCompile Include="src\studio\panels\bars\top_bar.cpp">
+      <DynamicSource Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">input</DynamicSource>
+      <QtMocFileName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(Filename).moc</QtMocFileName>
+      <DynamicSource Condition="'$(Configuration)|$(Platform)'=='Release|x64'">input</DynamicSource>
+      <QtMocFileName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(Filename).moc</QtMocFileName>
+    </ClCompile>
+    <ClCompile Include="src\studio\panels\tabs\gallery_tab.cpp" />
+    <ClCompile Include="src\studio\panels\tabs\studio_tab.cpp">
+      <DynamicSource Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">input</DynamicSource>
+      <QtMocFileName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(Filename).moc</QtMocFileName>
+      <DynamicSource Condition="'$(Configuration)|$(Platform)'=='Release|x64'">input</DynamicSource>
+      <QtMocFileName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(Filename).moc</QtMocFileName>
+    </ClCompile>
+    <ClCompile Include="src\studio\panels\tabs\transcript_tab.cpp" />
+    <ClCompile Include="src\studio\panels\tabs\wizard_tab.cpp" />
+    <ClCompile Include="src\studio\panels\topbar_actions\about.cpp" />
+    <ClCompile Include="src\studio\panels\topbar_actions\edit.cpp" />
+    <ClCompile Include="src\studio\panels\topbar_actions\export.cpp" />
+    <ClCompile Include="src\studio\panels\topbar_actions\file.cpp" />
+    <ClCompile Include="src\studio\panels\topbar_actions\folder.cpp" />
+    <ClCompile Include="src\studio\panels\topbar_actions\help.cpp" />
+    <ClCompile Include="src\studio\panels\topbar_actions\settings.cpp" />
+    <ClCompile Include="src\studio\panels\topbar_actions\settings_controllers\image.cpp" />
+    <ClCompile Include="src\studio\panels\topbar_actions\settings_controllers\models.cpp" />
+    <ClCompile Include="src\studio\panels\topbar_actions\settings_controllers\system.cpp" />
+    <ClCompile Include="src\studio\panels\topbar_actions\settings_controllers\wizard.cpp" />
+    <ClCompile Include="src\studio\panels\topbar_actions\view.cpp" />
+    <ClCompile Include="src\studio\widgets\canvas_widget.cpp" />
+    <None Include=".github\copilot-instructions.md" />
+    <None Include="src\studio\style.qss" />
+    <QtRcc Include="axis_cleaner.qrc" />
+    <QtMoc Include="axis_cleaner.h" />
+    <ClCompile Include="axis_cleaner.cpp" />
+    <ClCompile Include="main.cpp" />
+    <None Include="axis_cleaner.ico" />
+    <ResourceCompile Include="axis_cleaner.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <QtMoc Include="src\studio\panels\topbar_actions\settings_controllers\wizard.h" />
+    <QtMoc Include="src\studio\panels\topbar_actions\settings_controllers\system.h" />
+    <QtMoc Include="src\studio\panels\topbar_actions\settings_controllers\models.h" />
+    <QtMoc Include="src\studio\panels\topbar_actions\settings_controllers\image.h" />
+    <QtMoc Include="src\studio\panels\topbar_actions\about.h" />
+    <QtMoc Include="src\studio\panels\topbar_actions\edit.h" />
+    <QtMoc Include="src\studio\panels\topbar_actions\export.h" />
+    <QtMoc Include="src\studio\panels\topbar_actions\file.h" />
+    <QtMoc Include="src\studio\panels\topbar_actions\folder.h" />
+    <ClInclude Include="src\core\hardware\system_scanner.h" />
+    <QtMoc Include="src\core\hardware\telemetry.h" />
+    <QtMoc Include="src\core\pipeline\studio_worker.h" />
+    <QtMoc Include="src\core\pipeline\batch_worker.h" />
+    <QtMoc Include="src\core\pipeline\pipeline_manager.h" />
+    <QtMoc Include="src\core\input\shortcut_mgr.h" />
+    <ClInclude Include="src\core\image_ops\cv_painter.h" />
+    <ClInclude Include="src\core\image_ops\inpaint_router.h" />
+    <ClInclude Include="src\core\pipeline\ai_types.h" />
+    <ClInclude Include="src\core\pipeline\task_queue.h" />
+    <ClInclude Include="src\core\state\history_stack.h" />
+    <ClInclude Include="src\core\state\session_data.h" />
+    <ClInclude Include="src\diagnostics\logger.h" />
+    <ClInclude Include="src\engine\models\lama_engine.h" />
+    <ClInclude Include="src\engine\models\moebius_engine.h" />
+    <ClInclude Include="src\engine\models\textbpn_engine.h" />
+    <ClInclude Include="src\engine\trt_arch_detector.h" />
+    <ClInclude Include="src\engine\trt_runtime.h" />
+    <ClInclude Include="src\storage\config_mgr.h" />
+    <ClInclude Include="src\storage\psd_exporter.h" />
+    <ClInclude Include="src\storage\workspace.h" />
+    <QtMoc Include="src\studio\panels\topbar_actions\help.h" />
+    <QtMoc Include="src\studio\panels\topbar_actions\settings.h" />
+    <QtMoc Include="src\studio\panels\topbar_actions\view.h" />
+    <QtMoc Include="src\studio\panels\bars\left_toolbar.h" />
+    <QtMoc Include="src\studio\panels\bars\right_ai_panel.h" />
+    <QtMoc Include="src\studio\panels\bars\status_bar.h" />
+    <QtMoc Include="src\studio\panels\bars\top_bar.h" />
+    <QtMoc Include="src\studio\panels\tabs\gallery_tab.h" />
+    <QtMoc Include="src\studio\panels\tabs\studio_tab.h" />
+    <QtMoc Include="src\studio\panels\tabs\wizard_tab.h" />
+    <QtMoc Include="src\studio\panels\tabs\transcript_tab.h" />
+    <QtMoc Include="src\studio\widgets\canvas_widget.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Condition="Exists('$(QtMsBuild)\qt.targets')">
+    <Import Project="$(QtMsBuild)\qt.targets" />
+  </ImportGroup>
+  <ImportGroup Label="ExtensionTargets" />
+</Project>

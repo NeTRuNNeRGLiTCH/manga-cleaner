@@ -1,0 +1,77 @@
+# ============================================================
+# Axis Cleaner (C++ / Qt6 / MSVC) - git ignore rules
+# ============================================================
+
+# --- Build output & intermediates ---
+x64/
+[Bb]uild/
+[Bb]in/
+[Oo]bj/
+bld/
+out/
+
+# --- Visual Studio cache & user-specific files ---
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.opendb
+*.VC.db
+*.log
+
+# --- Qt/MSBuild NuGet restore cache ---
+QtMsBuild/
+
+# --- NuGet packages ---
+packages/
+
+# --- Local machine dependency paths (commit the .template.props instead) ---
+axis_deps.props
+
+# --- C/C++ compiler / linker artifacts ---
+*.obj
+*.pch
+*.ipch
+*.idb
+*.pdb
+*.ilk
+*.exp
+*.lib
+*.a
+*.aps
+*.tlog
+*.lastbuildstate
+*.unsuccessfulbuild
+*.cache
+*.binlog
+*.recipe
+
+# --- Built binaries (app, tools, deployed DLLs are rebuilt from source) ---
+*.exe
+*.dll
+
+# --- AI model pack (2.5 GB of TensorRT binaries per GPU arch) ---
+# Shipped via GitHub Releases (models.zip), never through git.
+assets/models/**
+!assets/models/moebius.yaml
+*.engine
+*.trt
+*.onnx
+*.pth
+*.ckpt
+*.safetensors
+
+# --- Logs & temp files ---
+logs/
+*.tmp
+trt_probe_log.txt
+
+# --- Agent / editor tool state ---
+.freebuff/
+.vscode/
+
+# --- OS cruft ---
+Thumbs.db
+Desktop.ini
+.DS_Store
