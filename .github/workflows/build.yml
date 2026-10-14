@@ -49,6 +49,12 @@ jobs:
             spec: MangaCleaner_CPU_linux.spec
             is_gpu: false
 
+          # 5. Linux GPU
+          - target: Linux-GPU
+            os: ubuntu-latest
+            spec: MangaCleaner_GPU_linux.spec
+            is_gpu: true
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -76,15 +82,52 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
 
-      - name: Install Python Dependencies & PyInstaller
+      - name: Install Python Dependencies (Windows & Linux CPU)
+        if: runner.os == 'Windows' || matrix.is_gpu == false
         run: |
           python -m pip install --upgrade pip setuptools wheel
           python -m pip install -r requirements.txt
+
+      - name: Install Python Dependencies (Linux GPU)
+        if: runner.os == 'Linux' && matrix.is_gpu
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install -r requirements_linux.txt
+
+      - name: Validate Linux GPU Build Dependencies
+        if: runner.os == 'Linux' && matrix.is_gpu
+        run: |
+          python - <<'PY'
+          import importlib.util
+          import sys
+
+          required_packages = {
+              "nvidia-cublas": ("nvidia.cublas", "nvidia_cublas"),
+              "nvidia-cuda-nvrtc": ("nvidia.cuda_nvrtc", "nvidia_cuda_nvrtc"),
+              "nvidia-cuda-runtime": ("nvidia.cuda_runtime", "nvidia_cuda_runtime"),
+              "nvidia-cudnn-cu13": ("nvidia.cudnn",),
+              "nvidia-cufft": ("nvidia.cufft", "nvidia_cufft"),
+              "nvidia-curand": ("nvidia.curand", "nvidia_curand"),
+              "nvidia-nvjitlink": ("nvidia.nvjitlink", "nvidia_nvjitlink"),
+          }
+          missing = []
+          for dependency_name, module_candidates in required_packages.items():
+              if not any(importlib.util.find_spec(pkg) is not None for pkg in module_candidates):
+                  missing.append(f"{dependency_name} ({', '.join(module_candidates)})")
+          if missing:
+              print("Missing required Linux GPU Python packages for PyInstaller collect_all():")
+              for pkg in missing:
+                  print(f" - {pkg}")
+              sys.exit(1)
+          PY
+
+      - name: Install PyInstaller
+        run: |
           python -m pip install pyinstaller==6.18.0
 
       # --- GPU Wheels (Only for Windows GPU build) ---
       - name: Install CUDA 12 & cuDNN 9 DLL Wheels (GPU Only)
-        if: matrix.is_gpu
+        if: runner.os == 'Windows' && matrix.is_gpu
         run: |
           python -m pip install nvidia-cuda-runtime-cu12 nvidia-cudnn-cu12 nvidia-cublas-cu12 nvidia-cufft-cu12 nvidia-curand-cu12
 

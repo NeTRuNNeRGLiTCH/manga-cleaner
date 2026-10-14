@@ -1,30 +1,50 @@
 # -*- mode: python ; coding: utf-8 -*-
 
 from PyInstaller.utils.hooks import collect_all
+from importlib.util import find_spec
 
 # NVIDIA CUDA 13 packages used by ONNX Runtime 1.29
-nvidia_packages = [
-    'nvidia.cublas',
-    'nvidia.cuda_nvrtc',
-    'nvidia.cuda_runtime',
-    'nvidia.cudnn',
-    'nvidia.cufft',
-    'nvidia.curand',
-    'nvidia.nvjitlink',
-]
+nvidia_package_candidates = {
+    'nvidia-cublas': ['nvidia.cublas', 'nvidia_cublas'],
+    'nvidia-cuda-nvrtc': ['nvidia.cuda_nvrtc', 'nvidia_cuda_nvrtc'],
+    'nvidia-cuda-runtime': ['nvidia.cuda_runtime', 'nvidia_cuda_runtime'],
+    'nvidia-cudnn-cu13': ['nvidia.cudnn'],
+    'nvidia-cufft': ['nvidia.cufft', 'nvidia_cufft'],
+    'nvidia-curand': ['nvidia.curand', 'nvidia_curand'],
+    'nvidia-nvjitlink': ['nvidia.nvjitlink', 'nvidia_nvjitlink'],
+}
 
 nvidia_binaries = []
 nvidia_datas = []
 nvidia_hiddenimports = []
+missing_nvidia_packages = []
 
-for package in nvidia_packages:
-    try:
-        binaries, datas, hiddenimports = collect_all(package)
-        nvidia_binaries.extend(binaries)
-        nvidia_datas.extend(datas)
-        nvidia_hiddenimports.extend(hiddenimports)
-    except Exception:
-        pass
+for dependency_name, module_candidates in nvidia_package_candidates.items():
+    collected = False
+    for package in module_candidates:
+        if find_spec(package) is None:
+            continue
+        try:
+            binaries, datas, hiddenimports = collect_all(package)
+            nvidia_binaries.extend(binaries)
+            nvidia_datas.extend(datas)
+            nvidia_hiddenimports.extend(hiddenimports)
+            collected = True
+            break
+        except Exception as exc:
+            missing_nvidia_packages.append(f"{dependency_name} via {package}: {exc}")
+            collected = True
+            break
+    if not collected:
+        missing_nvidia_packages.append(
+            f"{dependency_name}: module not found ({', '.join(module_candidates)})"
+        )
+
+if missing_nvidia_packages:
+    raise RuntimeError(
+        "Missing required NVIDIA packages for Linux GPU build:\n"
+        + "\n".join(missing_nvidia_packages)
+    )
 
 
 a = Analysis(
