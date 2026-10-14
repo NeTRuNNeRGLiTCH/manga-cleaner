@@ -101,16 +101,19 @@ jobs:
           import importlib.util
           import sys
 
-          required_packages = [
-              "nvidia.cublas",
-              "nvidia.cuda_nvrtc",
-              "nvidia.cuda_runtime",
-              "nvidia.cudnn",
-              "nvidia.cufft",
-              "nvidia.curand",
-              "nvidia.nvjitlink",
-          ]
-          missing = [pkg for pkg in required_packages if importlib.util.find_spec(pkg) is None]
+          required_packages = {
+              "nvidia-cublas": ("nvidia.cublas", "nvidia_cublas"),
+              "nvidia-cuda-nvrtc": ("nvidia.cuda_nvrtc", "nvidia_cuda_nvrtc"),
+              "nvidia-cuda-runtime": ("nvidia.cuda_runtime", "nvidia_cuda_runtime"),
+              "nvidia-cudnn-cu13": ("nvidia.cudnn",),
+              "nvidia-cufft": ("nvidia.cufft", "nvidia_cufft"),
+              "nvidia-curand": ("nvidia.curand", "nvidia_curand"),
+              "nvidia-nvjitlink": ("nvidia.nvjitlink", "nvidia_nvjitlink"),
+          }
+          missing = []
+          for dependency_name, module_candidates in required_packages.items():
+              if not any(importlib.util.find_spec(pkg) is not None for pkg in module_candidates):
+                  missing.append(f"{dependency_name} ({', '.join(module_candidates)})")
           if missing:
               print("Missing required Linux GPU Python packages for PyInstaller collect_all():")
               for pkg in missing:
