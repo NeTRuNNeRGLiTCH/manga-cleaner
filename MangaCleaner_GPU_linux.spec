@@ -16,6 +16,7 @@ nvidia_packages = [
 nvidia_binaries = []
 nvidia_datas = []
 nvidia_hiddenimports = []
+missing_nvidia_packages = []
 
 for package in nvidia_packages:
     try:
@@ -23,8 +24,14 @@ for package in nvidia_packages:
         nvidia_binaries.extend(binaries)
         nvidia_datas.extend(datas)
         nvidia_hiddenimports.extend(hiddenimports)
-    except Exception:
-        pass
+    except Exception as exc:
+        missing_nvidia_packages.append(f"{package}: {exc}")
+
+if missing_nvidia_packages:
+    raise RuntimeError(
+        "Missing required NVIDIA packages for Linux GPU build:\n"
+        + "\n".join(missing_nvidia_packages)
+    )
 
 
 a = Analysis(

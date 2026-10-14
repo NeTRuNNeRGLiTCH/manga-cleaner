@@ -1,3 +1,5 @@
+nvidia-cublas-cu13
+nvidia-cuda-nvrtc-cu13
 nvidia-cuda-runtime
 nvidia-cudnn-cu13
 nvidia-cufft
