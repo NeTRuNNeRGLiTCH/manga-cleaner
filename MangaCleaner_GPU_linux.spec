@@ -1,57 +1,86 @@
+
 # -*- mode: python ; coding: utf-8 -*-
 
-from PyInstaller.utils.hooks import collect_all
+from importlib.metadata import distribution, PackageNotFoundError
+from pathlib import Path
+import sysconfig
 
-# NVIDIA CUDA 13 packages used by ONNX Runtime 1.29
-nvidia_packages = [
-    'nvidia.cublas',
-    'nvidia.cuda_nvrtc',
-    'nvidia.cuda_runtime',
-    'nvidia.cudnn',
-    'nvidia.cufft',
-    'nvidia.curand',
-    'nvidia.nvjitlink',
+# Collect the actual shared libraries installed by these CUDA 13 wheels.
+# Distribution names do not necessarily correspond to importable modules.
+nvidia_distributions = [
+    'nvidia-cublas',
+    'nvidia-cuda-nvrtc',
+    'nvidia-cuda-runtime',
+    'nvidia-cudnn-cu13',
+    'nvidia-cufft',
+    'nvidia-curand',
+    'nvidia-nvjitlink',
 ]
 
+site_packages = Path(sysconfig.get_paths()['purelib'])
 nvidia_binaries = []
-nvidia_datas = []
-nvidia_hiddenimports = []
-missing_nvidia_packages = []
+missing_packages = []
+found_libraries = set()
 
-for package in nvidia_packages:
+for package_name in nvidia_distributions:
     try:
-        binaries, datas, hiddenimports = collect_all(package)
-        nvidia_binaries.extend(binaries)
-        nvidia_datas.extend(datas)
-        nvidia_hiddenimports.extend(hiddenimports)
-    except Exception as exc:
-        missing_nvidia_packages.append(f"{package}: {exc}")
+        dist = distribution(package_name)
+    except PackageNotFoundError:
+        missing_packages.append(f'{package_name}: distribution not installed')
+        continue
 
-if missing_nvidia_packages:
+    for entry in dist.files or []:
+        # Include versioned and unversioned ELF shared libraries.
+        if '.so' not in entry.name:
+            continue
+
+        source = Path(dist.locate_file(entry))
+
+        if not source.is_file():
+            continue
+
+        try:
+            relative_path = source.relative_to(site_packages)
+        except ValueError:
+            missing_packages.append(
+                f'{package_name}: library outside site-packages: {source}'
+            )
+            continue
+
+        # Preserve directories such as nvidia/cu13/lib.
+        destination = relative_path.parent.as_posix()
+
+        nvidia_binaries.append((str(source), destination))
+        found_libraries.add(source.name)
+
+    print(f'Collected NVIDIA distribution: {package_name}')
+
+if missing_packages:
     raise RuntimeError(
-        "Missing required NVIDIA packages for Linux GPU build:\n"
-        + "\n".join(missing_nvidia_packages)
+        'NVIDIA dependency collection failed:\n'
+        + '\n'.join(missing_packages)
     )
 
+if not nvidia_binaries:
+    raise RuntimeError('No NVIDIA shared libraries were collected.')
+
+print(f'Collected {len(nvidia_binaries)} NVIDIA shared-library files.')
+print(f'Unique library filenames: {len(found_libraries)}')
 
 a = Analysis(
     ['main.py'],
     pathex=[],
-
     binaries=nvidia_binaries,
-
     datas=[
         ('assets', 'assets'),
         ('src', 'src'),
-    ] + nvidia_datas,
-
+    ],
     hiddenimports=[
         'onnxruntime',
         'onnxruntime.capi',
         'onnxruntime.capi.onnxruntime_pybind11_state',
         'PySide6.QtSvg',
-    ] + nvidia_hiddenimports,
-
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -60,8 +89,7 @@ a = Analysis(
     optimize=0,
 )
 
-# Keep CUDA/TensorRT providers!
-# Only remove unused Qt components.
+# Keep CUDA and TensorRT providers. Remove only unwanted Qt components.
 forbidden_keywords = [
     'libQt6OpenGL',
     'libQt6Pdf',
@@ -72,13 +100,15 @@ forbidden_keywords = [
 ]
 
 a.binaries = [
-    b for b in a.binaries
-    if not any(k.lower() in b[0].lower() for k in forbidden_keywords)
+    item for item in a.binaries
+    if not any(k.lower() in item[0].lower()
+               for k in forbidden_keywords)
 ]
 
 a.datas = [
-    d for d in a.datas
-    if not any(k.lower() in d[0].lower() for k in forbidden_keywords)
+    item for item in a.datas
+    if not any(k.lower() in item[0].lower()
+               for k in forbidden_keywords)
 ]
 
 pyz = PYZ(a.pure)

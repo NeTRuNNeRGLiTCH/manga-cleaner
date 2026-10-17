@@ -94,29 +94,46 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
           python -m pip install -r requirements_linux.txt
 
+
       - name: Validate Linux GPU Build Dependencies
         if: runner.os == 'Linux' && matrix.is_gpu
         run: |
           python - <<'PY'
-          import importlib.util
+          from importlib.metadata import version, PackageNotFoundError
+          from pathlib import Path
+          import sysconfig
           import sys
 
-          required_packages = [
-              "nvidia.cublas",
-              "nvidia.cuda_nvrtc",
-              "nvidia.cuda_runtime",
-              "nvidia.cudnn",
-              "nvidia.cufft",
-              "nvidia.curand",
-              "nvidia.nvjitlink",
+          packages = [
+              "onnxruntime-gpu",
+              "nvidia-cublas",
+              "nvidia-cuda-nvrtc",
+              "nvidia-cuda-runtime",
+              "nvidia-cudnn-cu13",
+              "nvidia-cufft",
+              "nvidia-curand",
+              "nvidia-nvjitlink",
           ]
-          missing = [pkg for pkg in required_packages if importlib.util.find_spec(pkg) is None]
+
+          missing = []
+          for name in packages:
+              try:
+                  print(f"{name}=={version(name)}")
+              except PackageNotFoundError:
+                  missing.append(name)
+
           if missing:
-              print("Missing required Linux GPU Python packages for PyInstaller collect_all():")
-              for pkg in missing:
-                  print(f" - {pkg}")
-              sys.exit(1)
+              sys.exit(f"Missing distributions: {missing}")
+
+          root = Path(sysconfig.get_paths()["purelib"]) / "nvidia"
+          libraries = list(root.rglob("*.so*")) if root.exists() else []
+
+          if not libraries:
+              sys.exit(f"No NVIDIA shared libraries found under {root}")
+
+          print(f"Found {len(libraries)} NVIDIA shared-library files.")
           PY
+
 
       - name: Install PyInstaller
         run: |
