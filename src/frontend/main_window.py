@@ -71,6 +71,7 @@ class MainWindow(QMainWindow):
         self.current_img_path = None
         self.batch_scan_type = "ocr"
         self.image_sessions = {}
+        self.pending_page_texts = {}  # Lazy queue for .txt dialogues before page is opened
         self.page_states = {}
         self.task_queue = []
         self.total_tasks = 0
@@ -487,7 +488,7 @@ class MainWindow(QMainWindow):
         self.stroke_settings_frame.setVisible(False)
 
         # Page Text Detector List
-        self.lbl_text_layers = QLabel("PAGE TEXT LAYERS (0)")
+        self.lbl_text_layers = QLabel("PAGE TEXT LAYERS (0 Placed | 0 Queued)")
         self.lbl_text_layers.setStyleSheet(f"color: {Config.COLOR_TEXT_DIM}; font-size: 9px; font-weight: bold; margin-top: 4px;")
         tp_lay.addWidget(self.lbl_text_layers)
 
@@ -794,36 +795,71 @@ class MainWindow(QMainWindow):
     def refresh_page_text_list(self):
         self.text_layer_list.blockSignals(True)
         self.text_layer_list.clear()
-        count = len(self.canvas.text_items)
-        self.lbl_text_layers.setText(f"PAGE TEXT LAYERS ({count})")
+        placed_count = len(self.canvas.text_items)
+        pending_count = len(self.canvas.pending_texts)
+        self.lbl_text_layers.setText(f"PAGE TEXT LAYERS ({placed_count} Placed | {pending_count} Queued)")
 
+        # 1. Show Placed Canvas Text Items first ([ ✓ ])
         for idx, item in enumerate(self.canvas.text_items, start=1):
-            preview = item.toPlainText().replace("\n", " ").strip()
-            if not preview:
-                preview = "<Empty>"
+            preview = item.toPlainText().replace("\n", " ").strip() or "<Empty>"
             if len(preview) > 22:
                 preview = preview[:22] + "..."
-            list_item = QListWidgetItem(f"{idx}. {preview}")
-            list_item.setData(Qt.UserRole, item)
+            list_item = QListWidgetItem(f"[ ✓ ] {idx}. {preview}")
+            list_item.setData(Qt.UserRole, ("PLACED", item))
             self.text_layer_list.addItem(list_item)
             if item.isSelected():
                 list_item.setSelected(True)
+
+        # 2. Show Pending Queued Script Lines below ([ + ] click to spawn with active font!)
+        for p_idx, text_str in enumerate(self.canvas.pending_texts):
+            preview = text_str.replace("\n", " ").strip()
+            if len(preview) > 22:
+                preview = preview[:22] + "..."
+            list_item = QListWidgetItem(f"[ + ] {preview}")
+            list_item.setForeground(QColor(Config.COLOR_ACCENT))
+            list_item.setToolTip(f"Click to place on canvas with current font:\n{text_str}")
+            list_item.setData(Qt.UserRole, ("PENDING", p_idx))
+            self.text_layer_list.addItem(list_item)
+
         self.text_layer_list.blockSignals(False)
 
     def on_text_layer_item_clicked(self, list_item):
-        target_item = list_item.data(Qt.UserRole)
-        if isinstance(target_item, MangaTextItem) and target_item in self.canvas.text_items:
-            if self.canvas.current_tool == "NONE":
-                self.set_tool("TEXT", switch_category=False)
-            self.canvas.scene.clearSelection()
-            target_item.setSelected(True)
-            self.canvas.centerOn(target_item)
-            self.sync_text_ui_from_item(target_item)
+        data = list_item.data(Qt.UserRole)
+        if not isinstance(data, tuple):
+            return
+
+        kind, payload = data
+        if kind == "PLACED":
+            target_item = payload
+            if isinstance(target_item, MangaTextItem) and target_item in self.canvas.text_items:
+                if self.canvas.current_tool == "NONE":
+                    self.set_tool("TEXT", switch_category=False)
+                self.canvas.scene.clearSelection()
+                target_item.setSelected(True)
+                self.canvas.centerOn(target_item)
+                self.sync_text_ui_from_item(target_item)
+
+        elif kind == "PENDING":
+            if self.canvas.cv_img is None or self.canvas.is_locked:
+                return
+            p_idx = payload
+            if 0 <= p_idx < len(self.canvas.pending_texts):
+                text_str = self.canvas.pending_texts.pop(p_idx)
+                if self.current_img_path:
+                    self.pending_page_texts[self.current_img_path] = list(self.canvas.pending_texts)
+                if self.canvas.current_tool == "NONE":
+                    self.set_tool("TEXT", switch_category=False)
+                center_pt = self.canvas.mapToScene(self.canvas.viewport().rect().center())
+                self.canvas.add_text_item(center_pt, initial_text=text_str, enter_edit=False)
+                self.mark_current_modified()
+                self.refresh_page_text_list()
 
     def on_clear_all_page_texts(self):
-        if not self.canvas.text_items:
+        if not self.canvas.text_items and not self.canvas.pending_texts:
             return
         self.canvas.clear_texts()
+        if self.current_img_path:
+            self.pending_page_texts[self.current_img_path] = []
         self.mark_current_modified()
 
     def sync_text_ui_from_item(self, item: MangaTextItem):
@@ -1020,14 +1056,12 @@ class MainWindow(QMainWindow):
     #/////////////////////////////////#
 
     def on_smart_ctrl_z(self):
-        """Routes Ctrl+Z to Image Undo when using Manual Cleaner Brush, or Mask Undo otherwise."""
         if self.canvas.current_tool in ("PAINT", "PICKER"):
             self.on_undo_image()
         else:
             self.on_undo_mask()
 
     def on_smart_ctrl_shift_z(self):
-        """Routes Ctrl+Shift+Z to Image Redo when using Manual Cleaner Brush, or Mask Redo otherwise."""
         if self.canvas.current_tool in ("PAINT", "PICKER"):
             self.on_redo_image()
         else:
@@ -1317,7 +1351,8 @@ class MainWindow(QMainWindow):
                         "img": img.copy(),
                         "mask": QImage(img.shape[1], img.shape[0], QImage.Format_ARGB32),
                         "history": HistoryManager(Config.MAX_HISTORY),
-                        "texts": []
+                        "texts": [],
+                        "pending_texts": list(self.pending_page_texts.get(path, []))
                     }
                     self.image_sessions[path]["mask"].fill(Qt.transparent)
 
@@ -1385,6 +1420,7 @@ class MainWindow(QMainWindow):
         p = QFileDialog.getExistingDirectory(self, "Select Folder")
         if p:
             self.image_sessions.clear()
+            self.pending_page_texts.clear()
             self.page_states.clear()
             self.file_list.clear()
             self.canvas.clear_texts()
@@ -1410,11 +1446,13 @@ class MainWindow(QMainWindow):
         if path_real == self.current_img_path: return 
 
         if self.current_img_path and self.canvas.cv_img is not None:
+            self.pending_page_texts[self.current_img_path] = list(self.canvas.pending_texts)
             self.image_sessions[self.current_img_path] = {
                 "img": self.canvas.cv_img.copy(),
                 "mask": self.canvas.mask.copy(),
                 "history": self.history,
-                "texts": self.canvas.get_texts_data()
+                "texts": self.canvas.get_texts_data(),
+                "pending_texts": list(self.canvas.pending_texts)
             }
 
         self.current_img_path = path_real
@@ -1426,6 +1464,8 @@ class MainWindow(QMainWindow):
             self.canvas.mask = session["mask"].copy()
             self.canvas.update_mask_display()
             self.canvas.load_texts_data(session.get("texts", []))
+            self.canvas.pending_texts = list(session.get("pending_texts", self.pending_page_texts.get(path_real, [])))
+            self.refresh_page_text_list()
         else:
             img_data = np.fromfile(path_real, dtype=np.uint8)
             img = cv2.imdecode(img_data, cv2.IMREAD_UNCHANGED)
@@ -1438,12 +1478,15 @@ class MainWindow(QMainWindow):
                 self.history = HistoryManager(Config.MAX_HISTORY)
                 self.canvas.set_image(img)
                 self.canvas.clear_texts()
+                self.canvas.pending_texts = list(self.pending_page_texts.get(path_real, []))
+                self.refresh_page_text_list()
                 
                 self.image_sessions[path_real] = {
                     "img": img.copy(),
                     "mask": self.canvas.mask.copy(),
                     "history": self.history,
-                    "texts": []
+                    "texts": [],
+                    "pending_texts": list(self.canvas.pending_texts)
                 }
             else:
                 QMessageBox.warning(self, "Load Error", f"The file is corrupted or cannot be processed:\n{os.path.basename(path_real)}")

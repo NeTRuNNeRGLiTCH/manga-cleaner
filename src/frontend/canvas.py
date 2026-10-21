@@ -223,7 +223,6 @@ class MangaTextItem(QGraphicsTextItem):
         is_editing = bool(self.textInteractionFlags() & Qt.TextEditorInteraction)
         has_text = bool(self.toPlainText().strip())
 
-        # 1. Draw Photoshop-style Outer Stroke + Clean Vector Fill
         if self.stroke_enabled and self.stroke_width > 0 and has_text:
             painter.save()
             painter.setRenderHint(QPainter.Antialiasing)
@@ -248,7 +247,6 @@ class MangaTextItem(QGraphicsTextItem):
         else:
             super().paint(painter, opt, widget)
 
-        # 2. Visual Guides & Transform Gizmo (Only in UI viewport)
         if widget is not None:
             painter.save()
             painter.setRenderHint(QPainter.Antialiasing)
@@ -339,7 +337,7 @@ class MangaCanvas(QGraphicsView):
     text_selected = Signal(object)
     text_modified = Signal()
     texts_list_changed = Signal()
-    image_patch_created = Signal(int, int, object) # Emits (x, y, old_patch) for Alt+Z Undo
+    image_patch_created = Signal(int, int, object)
     clean_color_picked = Signal(QColor)
 
     def __init__(self):
@@ -351,7 +349,6 @@ class MangaCanvas(QGraphicsView):
         self.setRenderHints(QPainter.Antialiasing | QPainter.SmoothPixmapTransform | QPainter.TextAntialiasing)
         self.setTransformationAnchor(QGraphicsView.AnchorUnderMouse)
 
-        # --- GENERATE CHECKERBOARD BACKGROUND ---
         grid_size = 10
         checkerboard = QPixmap(grid_size * 2, grid_size * 2)
         checkerboard.fill(QColor(255, 255, 255))
@@ -381,7 +378,6 @@ class MangaCanvas(QGraphicsView):
         self.resize_start_size = 40
         self.resize_start_cursor_pos = None
 
-        # Manual Cleaner Brush State (paints directly onto cv_img)
         self.manual_clean_color = QColor(255, 255, 255)
         self._stroke_pre_img = None
         self._stroke_min_x = 0
@@ -391,6 +387,7 @@ class MangaCanvas(QGraphicsView):
         
         # Default text configuration
         self.text_items = []
+        self.pending_texts = []  # Unplaced dialogue strings from .txt script
         self.default_font_family = "Arial"
         self.default_font_size = 32
         self.default_text_color = QColor(0, 0, 0)
@@ -402,7 +399,6 @@ class MangaCanvas(QGraphicsView):
         self.default_italic = False
         self.default_align_center = True
 
-        # Active Gizmo Interaction State
         self._active_gizmo_item = None
         self._active_gizmo_mode = None
         self._gizmo_start_font_size = 32
@@ -418,7 +414,6 @@ class MangaCanvas(QGraphicsView):
         self.preview_item.setPen(QPen(QColor(255, 0, 0, 200), 2, Qt.DashLine))
         self.scene.addItem(self.preview_item)
 
-        # --- BIG CORNER LOCK OVERLAY ---
         self.lock_overlay = QLabel(self)
         lock_path = os.path.join(Paths.BUNDLE_DIR, "assets", "icon_lock.svg")
         if os.path.exists(lock_path):
@@ -442,9 +437,9 @@ class MangaCanvas(QGraphicsView):
         if selected:
             self.text_selected.emit(selected[0])
 
-    def add_text_item(self, scene_pos):
+    def add_text_item(self, scene_pos, initial_text="Text", enter_edit=True):
         item = MangaTextItem(
-            text="Text",
+            text=initial_text,
             font_family=self.default_font_family,
             font_size=self.default_font_size,
             text_color=self.default_text_color,
@@ -464,7 +459,8 @@ class MangaCanvas(QGraphicsView):
         
         self.scene.clearSelection()
         item.setSelected(True)
-        item.enter_edit_mode()
+        if enter_edit:
+            item.enter_edit_mode()
         self.text_modified.emit()
         self.texts_list_changed.emit()
         return item
@@ -487,19 +483,23 @@ class MangaCanvas(QGraphicsView):
             if item.scene() == self.scene:
                 self.scene.removeItem(item)
         self.text_items.clear()
+        self.pending_texts.clear()
         self.texts_list_changed.emit()
 
     def get_texts_data(self):
         return [item.to_dict() for item in self.text_items if item.toPlainText().strip()]
 
     def load_texts_data(self, texts_list):
-        self.clear_texts()
-        if not texts_list:
-            return
-        for data in texts_list:
-            item = MangaTextItem.from_dict(data)
-            self.scene.addItem(item)
-            self.text_items.append(item)
+        for item in list(self.text_items):
+            if item.scene() == self.scene:
+                self.scene.removeItem(item)
+        self.text_items.clear()
+
+        if texts_list:
+            for data in texts_list:
+                item = MangaTextItem.from_dict(data)
+                self.scene.addItem(item)
+                self.text_items.append(item)
         self.texts_list_changed.emit()
 
     @staticmethod
@@ -571,7 +571,6 @@ class MangaCanvas(QGraphicsView):
         x1, y1 = int(round(p1.x())), int(round(p1.y()))
         x2, y2 = int(round(p2.x())), int(round(p2.y()))
 
-        # Expand dirty bounding box for Undo history patch
         pad = rad + 4
         self._stroke_min_x = max(0, min(self._stroke_min_x, x1 - pad, x2 - pad))
         self._stroke_min_y = max(0, min(self._stroke_min_y, y1 - pad, y2 - pad))
@@ -742,7 +741,6 @@ class MangaCanvas(QGraphicsView):
         return None, None
 
     def mousePressEvent(self, event):
-        # Dynamic Brush Resize: Alt + Right-Click Drag
         if (event.modifiers() & Qt.AltModifier) and event.button() == Qt.RightButton and self.current_tool in ["BRUSH", "ERASER", "PAINT"]:
             self.is_resizing_brush = True
             self.resize_start_pos = event.pos()
@@ -753,7 +751,6 @@ class MangaCanvas(QGraphicsView):
 
         curr_pt = self.mapToScene(event.pos())
 
-        # 1. Intercept Gizmo Handle Clicks
         if event.button() == Qt.LeftButton and not self.is_locked and self.current_tool in ["TEXT", "NONE"]:
             gizmo_item, handle = self._find_gizmo_handle_at(curr_pt)
             if gizmo_item and handle:
@@ -769,7 +766,6 @@ class MangaCanvas(QGraphicsView):
                 event.accept()
                 return
 
-        # 2. TEXT TOOL LOGIC
         if self.current_tool == "TEXT" and not self.is_locked and self.cv_img is not None:
             item_under_mouse = self.itemAt(event.pos())
 
@@ -795,7 +791,6 @@ class MangaCanvas(QGraphicsView):
                         event.accept()
                         return
 
-        # Always allow moving/panning regardless of lock state
         if self.current_tool == "NONE" or event.button() == Qt.RightButton:
             if event.button() == Qt.RightButton and self.current_tool == "POLY":
                 self.poly_points.clear()
@@ -810,13 +805,11 @@ class MangaCanvas(QGraphicsView):
                 self.scene.focusItem().clearFocus()
             self.scene.clearSelection()
 
-            # EYEDROPPER / COLOR PICKER LOGIC (or Alt+LeftClick while in PAINT mode)
             if self.current_tool == "PICKER" or (self.current_tool == "PAINT" and (event.modifiers() & Qt.AltModifier)):
                 self.pick_color_at(curr_pt)
                 event.accept()
                 return
 
-            # MANUAL CLEANER DIRECT PAINT LOGIC
             if self.current_tool == "PAINT" and self.cv_img is not None:
                 h, w = self.cv_img.shape[:2]
                 self._stroke_pre_img = self.cv_img.copy()
@@ -876,7 +869,6 @@ class MangaCanvas(QGraphicsView):
         curr_pt = self.mapToScene(event.pos())
         self.cursor_item.setPos(curr_pt)
 
-        # Handle active Transform Gizmo dragging
         if self._active_gizmo_item is not None and self._active_gizmo_mode is not None:
             it = self._active_gizmo_item
             r = it._text_rect()
@@ -924,7 +916,6 @@ class MangaCanvas(QGraphicsView):
             event.accept()
             return
 
-        # Update hover cursor over gizmo handles when in TEXT tool
         if self.current_tool == "TEXT" and not self.is_locked:
             _, handle = self._find_gizmo_handle_at(curr_pt)
             if handle == "ROTATE":

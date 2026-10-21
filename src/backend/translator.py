@@ -1,16 +1,11 @@
 import os
 import re
-import cv2
-import numpy as np
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
-                             QPushButton, QFrame, QListWidget, QListWidgetItem, 
+                             QPushButton, QListWidget, QListWidgetItem, 
                              QFileDialog, QMessageBox, QCheckBox)
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QImage
 from src.utils.config import Config
-from src.utils.history import HistoryManager
 from src.utils.logger import logger
-from src.frontend.canvas import MangaTextItem
 
 #/////////////////////////////////#
 #    SCRIPT PARSER & GENERATOR    #
@@ -21,9 +16,6 @@ class TranslationScriptEngine:
 
     @staticmethod
     def generate_template(project_paths: list) -> str:
-        """
-        Generates a clean .txt template matching the exact number of loaded project images.
-        """
         header = (
             "# =====================================================================\n"
             "# MANGA CLEANER - TRANSLATION SCRIPT TEMPLATE\n"
@@ -56,17 +48,15 @@ class TranslationScriptEngine:
     @staticmethod
     def parse_script(raw_text: str) -> list:
         """
-        Strips '#' comment lines first (so <translation> mentioned in header comments is ignored),
-        then extracts content strictly between standalone <translation> and </translation> tags.
+        Strips '#' comment lines first, then extracts content strictly between
+        standalone <translation> and </translation> tags.
         """
-        # 1. Strip all '#' comment lines first!
         non_comment_lines = [
             line for line in raw_text.splitlines()
             if not line.strip().startswith("#")
         ]
         cleaned_text = "\n".join(non_comment_lines)
 
-        # 2. Match standalone <translation> ... </translation> block
         tag_pattern = re.compile(
             r"^\s*<translation>\s*$(.*?)^\s*</translation>\s*$",
             re.IGNORECASE | re.DOTALL | re.MULTILINE
@@ -74,7 +64,6 @@ class TranslationScriptEngine:
         match = tag_pattern.search(cleaned_text)
 
         if not match:
-            # Fallback if tags are inline with text
             fallback_pattern = re.compile(r"<translation>(.*?)</translation>", re.IGNORECASE | re.DOTALL)
             match = fallback_pattern.search(cleaned_text)
 
@@ -88,13 +77,11 @@ class TranslationScriptEngine:
         entries = []
         current_entry = None
 
-        # Captures 'Image 1' and optional '[001.jpg]'
         img_header_re = re.compile(r"^\s*image\s+(\d+)(?:\s*\[([^\]]+)\])?", re.IGNORECASE)
 
         for raw_line in inner_content.splitlines():
             line = raw_line.strip()
 
-            # Ignore empty lines or parenthetical notes
             if not line or (line.startswith("(") and not line.startswith("-")):
                 continue
 
@@ -172,18 +159,12 @@ class TranslatorPanel(QWidget):
         self.chk_match_brackets.setStyleSheet(f"color: {Config.COLOR_TEXT}; font-size: 10px;")
         lay.addWidget(self.chk_match_brackets)
 
-        self.chk_clear_existing = QCheckBox("Replace existing text layers on import")
+        self.chk_clear_existing = QCheckBox("Replace existing pending layers on import")
         self.chk_clear_existing.setChecked(True)
         self.chk_clear_existing.setStyleSheet(f"color: {Config.COLOR_TEXT}; font-size: 10px;")
         lay.addWidget(self.chk_clear_existing)
 
-        self.chk_auto_inject = QCheckBox("Auto-inject into all pages' Text Layers")
-        self.chk_auto_inject.setChecked(True)
-        self.chk_auto_inject.setToolTip("Automatically populates Page Text Layers across all project images upon loading")
-        self.chk_auto_inject.setStyleSheet(f"color: {Config.COLOR_TEXT}; font-size: 10px;")
-        lay.addWidget(self.chk_auto_inject)
-
-        self.btn_load_txt = QPushButton("📥 Import .TXT && Populate Layers")
+        self.btn_load_txt = QPushButton("📥 Import .TXT && Queue in Layers")
         self.btn_load_txt.setObjectName("PrimaryBtn")
         self.btn_load_txt.setFixedHeight(38)
         self.btn_load_txt.clicked.connect(self.on_import_script)
@@ -219,12 +200,13 @@ class TranslatorPanel(QWidget):
     def _get_all_project_paths(self) -> list:
         return [self.mw.file_list.item(i).data(Qt.UserRole) for i in range(self.mw.file_list.count())]
 
-    def _resolve_entries_to_paths(self, project_paths: list, entries: list, use_brackets: bool) -> dict:
+    def _resolve_entries_to_paths(self, project_paths: list, entries: list, use_brackets: bool) -> tuple:
         """
-        Maps parsed script entries to actual project file paths either by [filename] brackets
-        (exact match or stem match) or strictly by 1-based image order.
+        Maps parsed script entries to actual project file paths without decoding any images.
+        Returns (resolved_dict, unmatched_list).
         """
         resolved = {}
+        unmatched = []
         basename_to_path = {os.path.basename(p).lower(): p for p in project_paths}
         stem_to_path = {os.path.splitext(os.path.basename(p))[0].lower(): p for p in project_paths}
 
@@ -240,19 +222,21 @@ class TranslatorPanel(QWidget):
                 if target_path is None:
                     stem_key = os.path.splitext(fname_key)[0]
                     target_path = stem_to_path.get(stem_key)
-
-            # Fallback to 1-based index if brackets mode is unchecked
-            if target_path is None and not use_brackets:
+                if target_path is None:
+                    unmatched.append(f"Image {entry.get('index')} [{entry.get('filename')}]")
+            else:
                 idx = entry.get("index", 0) - 1
                 if 0 <= idx < len(project_paths):
                     target_path = project_paths[idx]
+                else:
+                    unmatched.append(f"Image {entry.get('index')}")
 
             if target_path:
                 if target_path not in resolved:
                     resolved[target_path] = []
                 resolved[target_path].extend(lines)
 
-        return resolved
+        return resolved, unmatched
 
     def on_generate_template(self):
         paths = self._get_all_project_paths()
@@ -315,7 +299,7 @@ class TranslatorPanel(QWidget):
             self.parsed_entries = entries
 
             use_brackets = self.chk_match_brackets.isChecked()
-            self.path_dialogues_map = self._resolve_entries_to_paths(paths, entries, use_brackets)
+            self.path_dialogues_map, unmatched = self._resolve_entries_to_paths(paths, entries, use_brackets)
 
             total_lines = sum(len(v) for v in self.path_dialogues_map.values())
             pages_with_text = len(self.path_dialogues_map)
@@ -324,115 +308,59 @@ class TranslatorPanel(QWidget):
                 f"Loaded ({mode_str}): {os.path.basename(open_path)} ({total_lines} lines / {pages_with_text} pages)"
             )
 
-            if self.chk_auto_inject.isChecked():
-                injected_pages = self.inject_script_across_project(
-                    self.path_dialogues_map, replace_existing=self.chk_clear_existing.isChecked()
-                )
-                self.refresh_active_page_preview()
-                QMessageBox.information(
-                    self,
-                    "Script Imported & Injected",
-                    f"Matched by: {'[filename] brackets' if use_brackets else 'Image Order'}\n"
-                    f"Injected {total_lines} dialogue lines across {injected_pages} pages.\n\n"
-                    f"All texts are now ready inside 'PAGE TEXT LAYERS' in the TYPESETTER workspace!"
-                )
-            else:
-                self.refresh_active_page_preview()
-                QMessageBox.information(
-                    self,
-                    "Script Loaded",
-                    f"Loaded {total_lines} dialogue lines across {pages_with_text} pages.\n"
-                    f"Double-click any line below to place it on the canvas."
-                )
+            queued_pages = self.queue_script_across_project(
+                self.path_dialogues_map, replace_existing=self.chk_clear_existing.isChecked()
+            )
+            self.refresh_active_page_preview()
+
+            unmatched_msg = ""
+            if unmatched:
+                preview_unmatched = ", ".join(unmatched[:5])
+                if len(unmatched) > 5:
+                    preview_unmatched += f" (+{len(unmatched) - 5} more)"
+                unmatched_msg = f"\n⚠️ Unmatched pages ({len(unmatched)}): {preview_unmatched}\n"
+
+            QMessageBox.information(
+                self,
+                "Script Queued in Layers",
+                f"Matched by: {'[filename] brackets' if use_brackets else 'Image Order'}\n"
+                f"Queued {total_lines} dialogue lines across {queued_pages} pages (0 MB extra RAM used)."
+                f"{unmatched_msg}\n"
+                f"In TYPESETTER -> PAGE TEXT LAYERS, simply click any '[ + ]' line to spawn it on the canvas with your currently selected font!"
+            )
 
         except Exception as e:
             logger.error(f"[TRANSLATOR] Script import error: {e}")
             QMessageBox.critical(self, "Script Import Error", str(e))
 
-    def _build_text_dicts_for_page(self, lines: list, img_w: int, img_h: int) -> list:
-        result = []
-        if not lines:
-            return result
+    def queue_script_across_project(self, path_dialogues_map: dict, replace_existing: bool = True) -> int:
+        """
+        Lightweight lazy-queue: stores pending text strings per file path WITHOUT decoding images into RAM.
+        """
+        if replace_existing:
+            self.mw.pending_page_texts.clear()
+            self.mw.canvas.pending_texts.clear()
 
-        n = len(lines)
-        start_y = max(60, int(img_h * 0.15))
-        usable_h = max(200, int(img_h * 0.70))
-        step_y = usable_h // max(1, n)
-
-        for i, text_str in enumerate(lines):
-            temp_item = MangaTextItem(
-                text=text_str,
-                font_family=self.mw.canvas.default_font_family,
-                font_size=self.mw.canvas.default_font_size,
-                text_color=self.mw.canvas.default_text_color,
-                stroke_enabled=self.mw.canvas.default_stroke_enabled,
-                stroke_color=self.mw.canvas.default_stroke_color,
-                stroke_width=self.mw.canvas.default_stroke_width,
-                stroke_opacity=self.mw.canvas.default_stroke_opacity,
-                bold=self.mw.canvas.default_bold,
-                italic=self.mw.canvas.default_italic,
-                align_center=self.mw.canvas.default_align_center
-            )
-            rect = temp_item._text_rect()
-            pos_x = max(20.0, (img_w - rect.width()) / 2.0)
-            pos_y = float(min(img_h - 60, start_y + i * step_y))
-            temp_item.setPos(pos_x, pos_y)
-            result.append(temp_item.to_dict())
-
-        return result
-
-    def inject_script_across_project(self, path_dialogues_map: dict, replace_existing: bool = True) -> int:
-        injected_count = 0
-
-        if self.mw.current_img_path and self.mw.canvas.cv_img is not None:
-            self.mw.image_sessions[self.mw.current_img_path] = {
-                "img": self.mw.canvas.cv_img.copy(),
-                "mask": self.mw.canvas.mask.copy(),
-                "history": self.mw.history,
-                "texts": self.mw.canvas.get_texts_data()
-            }
-
+        queued_count = 0
         for path, lines in path_dialogues_map.items():
             if not lines:
                 continue
 
-            if path not in self.mw.image_sessions:
-                img_data = np.fromfile(path, dtype=np.uint8)
-                img = cv2.imdecode(img_data, cv2.IMREAD_UNCHANGED)
-                if img is None:
-                    continue
-                if len(img.shape) == 2:
-                    img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
-                elif len(img.shape) == 3 and img.shape[2] == 4:
-                    img = cv2.cvtColor(img, cv2.COLOR_BGRA2RGBA)
-                else:
-                    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-
-                self.mw.image_sessions[path] = {
-                    "img": img.copy(),
-                    "mask": QImage(img.shape[1], img.shape[0], QImage.Format_ARGB32),
-                    "history": HistoryManager(Config.MAX_HISTORY),
-                    "texts": []
-                }
-                self.mw.image_sessions[path]["mask"].fill(Qt.transparent)
-
-            session = self.mw.image_sessions[path]
-            h, w = session["img"].shape[:2]
-            new_text_dicts = self._build_text_dicts_for_page(lines, w, h)
-
-            if replace_existing:
-                session["texts"] = new_text_dicts
+            if replace_existing or path not in self.mw.pending_page_texts:
+                self.mw.pending_page_texts[path] = list(lines)
             else:
-                session["texts"] = session.get("texts", []) + new_text_dicts
+                self.mw.pending_page_texts[path].extend(lines)
 
-            self.mw.file_list.update_item_state(path, "modified")
-            injected_count += 1
+            if path in self.mw.image_sessions:
+                self.mw.image_sessions[path]["pending_texts"] = list(self.mw.pending_page_texts[path])
+
+            queued_count += 1
 
             if path == self.mw.current_img_path:
-                self.mw.canvas.load_texts_data(session["texts"])
-                self.mw.mark_current_modified()
+                self.mw.canvas.pending_texts = list(self.mw.pending_page_texts[path])
+                self.mw.refresh_page_text_list()
 
-        return injected_count
+        return queued_count
 
     def refresh_active_page_preview(self):
         self.dialogue_list.clear()
@@ -464,7 +392,5 @@ class TranslatorPanel(QWidget):
             return
 
         center_pt = self.mw.canvas.mapToScene(self.mw.canvas.viewport().rect().center())
-        item = self.mw.canvas.add_text_item(center_pt)
-        item.setPlainText(text_str)
-        item.clearFocus()
+        item = self.mw.canvas.add_text_item(center_pt, initial_text=text_str, enter_edit=False)
         self.mw.canvas.texts_list_changed.emit()
