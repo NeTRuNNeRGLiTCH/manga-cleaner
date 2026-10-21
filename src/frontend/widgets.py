@@ -3,8 +3,8 @@ import PySide6.QtSvg
 from PySide6.QtWidgets import (QListWidget, QListWidgetItem, QWidget, QVBoxLayout, 
                              QPushButton, QLabel, QFrame, QSlider, QHBoxLayout,
                              QStyledItemDelegate, QGridLayout)
-from PySide6.QtCore import Qt, QRect
-from PySide6.QtGui import QIcon
+from PySide6.QtCore import Qt, QRect, Signal
+from PySide6.QtGui import QIcon, QColor
 from src.utils.config import Config
 from src.utils.paths import Paths
 
@@ -28,17 +28,14 @@ class FileListDelegate(QStyledItemDelegate):
         return self.icons[state_name]
 
     def paint(self, painter, option, index):
-        # 1. Paint standard background, highlight, checkbox, and text
         super().paint(painter, option, index)
         
-        # 2. Extract our custom status and lock flags
         state_name = index.data(Qt.UserRole + 1)
         is_locked = index.data(Qt.UserRole + 2)
         
         icon_size = 18
-        offset_x = 4  # Starting right-margin
+        offset_x = 4
         
-        # 3. Draw the Status Icon (Far Right)
         if state_name:
             icon = self._get_icon(state_name)
             if not icon.isNull():
@@ -46,9 +43,8 @@ class FileListDelegate(QStyledItemDelegate):
                 y = option.rect.top() + (option.rect.height() - icon_size) // 2
                 rect = QRect(x, y, icon_size, icon_size)
                 icon.paint(painter, rect, Qt.AlignCenter, QIcon.Normal, QIcon.On)
-                offset_x += icon_size + 4  # Shift cursor left for the next icon
+                offset_x += icon_size + 4
                 
-        # 4. Draw the Lock Icon (To the left of the status icon)
         if is_locked:
             lock_icon = self._get_icon("lock")
             if not lock_icon.isNull():
@@ -67,7 +63,7 @@ class FileListWidget(QListWidget):
         item = QListWidgetItem(os.path.basename(full_path))
         item.setData(Qt.UserRole, full_path)
         item.setData(Qt.UserRole + 1, "unmodified")  
-        item.setData(Qt.UserRole + 2, False) # Initial lock state
+        item.setData(Qt.UserRole + 2, False)
         item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
         item.setCheckState(Qt.Unchecked)
         self.addItem(item)
@@ -79,9 +75,60 @@ class FileListWidget(QListWidget):
                 item.setData(Qt.UserRole + 1, state_name)
                 break
 
-class ToolGroup(QFrame):
-    def __init__(self, title, button_configs):
+class ColorSwatchButton(QPushButton):
+    """Photoshop-style pure color rectangle button without internal text."""
+    def __init__(self, initial_color=QColor(255, 255, 255), width=38, height=24, tooltip=""):
+        super().__init__("")
+        self._color = QColor(initial_color)
+        self.setFixedSize(width, height)
+        self.setCursor(Qt.PointingHandCursor)
+        if tooltip:
+            self.setToolTip(tooltip)
+        self.set_color(self._color)
+
+    def set_color(self, color: QColor):
+        self._color = QColor(color)
+        self.setStyleSheet(
+            f"QPushButton {{ background-color: {self._color.name()}; "
+            f"border: 2px solid #5a5a66; border-radius: 2px; }}"
+            f"QPushButton:hover {{ border: 2px solid {Config.COLOR_ACCENT}; }}"
+        )
+
+    def get_color(self) -> QColor:
+        return QColor(self._color)
+
+class CategorySelector(QFrame):
+    """Top workspace/category switcher for the right sidebar (2x2 Grid)"""
+    category_changed = Signal(str)
+
+    def __init__(self, categories):
         super().__init__()
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(0, 0, 0, 4)
+        lay.setSpacing(4)
+
+        grid = QGridLayout()
+        grid.setSpacing(4)
+        self.buttons = {}
+
+        for i, name in enumerate(categories):
+            btn = QPushButton(name)
+            btn.setCheckable(True)
+            btn.setAutoExclusive(True)
+            btn.setFixedHeight(28)
+            btn.clicked.connect(lambda checked, n=name: self.category_changed.emit(n))
+            self.buttons[name] = btn
+            grid.addWidget(btn, i // 2, i % 2)
+
+        if categories:
+            self.buttons[categories[0]].setChecked(True)
+
+        lay.addLayout(grid)
+
+class ToolGroup(QFrame):
+    def __init__(self, title, button_configs, full_width_buttons=None):
+        super().__init__()
+        full_width_buttons = set(full_width_buttons or [])
         main_lay = QVBoxLayout(self)
         main_lay.setContentsMargins(5, 5, 5, 5)
         main_lay.setSpacing(4)
@@ -94,19 +141,30 @@ class ToolGroup(QFrame):
         grid_lay.setSpacing(4)
         
         self.buttons = {}
-        checkable = ["MOVE", "BRUSH", "ERASER", "RECT", "LASSO", "POLY", "BUCKET"]
+        checkable = ["MOVE", "BRUSH", "ERASER", "RECT", "LASSO", "POLY", "BUCKET", "MANUAL", "PICKER", "TEXT"]
         
-        for i, name in enumerate(button_configs):
+        row = 0
+        col = 0
+        for name in button_configs:
             btn = QPushButton(name)
             if name in checkable: 
                 btn.setCheckable(True)
                 btn.setAutoExclusive(True) 
             self.buttons[name] = btn
             
-            # Map index to a 2-column grid (row = index // 2, col = index % 2)
-            row = i // 2
-            col = i % 2
-            grid_lay.addWidget(btn, row, col)
+            if name in full_width_buttons:
+                if col != 0:
+                    row += 1
+                    col = 0
+                btn.setFixedHeight(32)
+                grid_lay.addWidget(btn, row, 0, 1, 2)
+                row += 1
+            else:
+                grid_lay.addWidget(btn, row, col)
+                col += 1
+                if col >= 2:
+                    col = 0
+                    row += 1
             
         main_lay.addLayout(grid_lay)
 

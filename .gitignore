@@ -72,3 +72,6 @@ Thumbs.db
 desktop.ini
 .env
 .env.local
+
+# --- font presets ---
+font_presets.json
