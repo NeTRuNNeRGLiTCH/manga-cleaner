@@ -25,6 +25,7 @@ from src.backend.photopea import PhotopeaBridge
 from src.backend.batch_engine import BatchEngine
 from src.backend.workers import AIWorker, get_pool, _run_flush_process
 from src.backend.stitcher import StitcherPanel
+from src.backend.translator import TranslatorPanel
 
 #/////////////////////////////////#
 #          PAGE STATE ENUM        #
@@ -505,7 +506,7 @@ class MainWindow(QMainWindow):
         row_del_btns.addWidget(self.btn_clear_texts, 1)
         tp_lay.addLayout(row_del_btns)
 
-       # ==========================================
+        # ==========================================
         # PAGE 2: STITCHER CATEGORY WORKSPACE
         # ==========================================
         self.stitcher_page = StitcherPanel(self)
@@ -513,22 +514,7 @@ class MainWindow(QMainWindow):
         # ==========================================
         # PAGE 3: TRANSLATOR CATEGORY WORKSPACE
         # ==========================================
-        self.translator_page = QWidget()
-        tr_lay = QVBoxLayout(self.translator_page)
-        tr_lay.setContentsMargins(6, 10, 6, 6)
-        tr_title = QLabel("SCRIPT IMPORTER (.TXT)")
-        tr_title.setStyleSheet(f"color: {Config.COLOR_ACCENT}; font-size: 11px; font-weight: bold;")
-        tr_desc = QLabel(
-            "Team Translation Workflow:\n\n"
-            "• Import or generate structured .txt scripts for the entire chapter\n"
-            "• Automatically displays dialogue lines matching the active page\n"
-            "• One-click injection into canvas text boxes"
-        )
-        tr_desc.setWordWrap(True)
-        tr_desc.setStyleSheet(f"color: {Config.COLOR_TEXT_DIM}; font-size: 10px;")
-        tr_lay.addWidget(tr_title)
-        tr_lay.addWidget(tr_desc)
-        tr_lay.addStretch()
+        self.translator_page = TranslatorPanel(self)
 
         # Add all 4 Category Pages to Stack
         self.category_stack.addWidget(self.cleaner_page)     # Index 0: CLEANER
@@ -827,6 +813,8 @@ class MainWindow(QMainWindow):
     def on_text_layer_item_clicked(self, list_item):
         target_item = list_item.data(Qt.UserRole)
         if isinstance(target_item, MangaTextItem) and target_item in self.canvas.text_items:
+            if self.canvas.current_tool == "NONE":
+                self.set_tool("TEXT", switch_category=False)
             self.canvas.scene.clearSelection()
             target_item.setSelected(True)
             self.canvas.centerOn(target_item)
@@ -1406,6 +1394,10 @@ class MainWindow(QMainWindow):
                     full_path = os.path.join(p, f)
                     self.page_states[full_path] = PageState.UNMODIFIED
                     self.file_list.add_file(full_path)
+            if hasattr(self, "stitcher_page"):
+                self.stitcher_page.clear_blocks()
+            if hasattr(self, "translator_page"):
+                self.translator_page.refresh_active_page_preview()
 
     def mark_current_modified(self):
         if self.current_img_path:
@@ -1458,6 +1450,8 @@ class MainWindow(QMainWindow):
                 logger.error(f"Failed to decode image: {path_real}")
                 
         self._check_lock_state()
+        if hasattr(self, "translator_page"):
+            self.translator_page.refresh_active_page_preview()
 
     def on_export(self, fmt):
         if self.canvas.cv_img is None: return
