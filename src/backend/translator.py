@@ -56,15 +56,27 @@ class TranslationScriptEngine:
     @staticmethod
     def parse_script(raw_text: str) -> list:
         """
-        Extracts content strictly inside <translation>...</translation>.
-        Returns a list of page entries:
-        [
-            {"index": 1, "filename": "001.jpg", "lines": ["Dialogue 1", "Dialogue 2"]},
-            ...
-        ]
+        Strips '#' comment lines first (so <translation> mentioned in header comments is ignored),
+        then extracts content strictly between standalone <translation> and </translation> tags.
         """
-        tag_pattern = re.compile(r"<translation>(.*?)</translation>", re.IGNORECASE | re.DOTALL)
-        match = tag_pattern.search(raw_text)
+        # 1. Strip all '#' comment lines first!
+        non_comment_lines = [
+            line for line in raw_text.splitlines()
+            if not line.strip().startswith("#")
+        ]
+        cleaned_text = "\n".join(non_comment_lines)
+
+        # 2. Match standalone <translation> ... </translation> block
+        tag_pattern = re.compile(
+            r"^\s*<translation>\s*$(.*?)^\s*</translation>\s*$",
+            re.IGNORECASE | re.DOTALL | re.MULTILINE
+        )
+        match = tag_pattern.search(cleaned_text)
+
+        if not match:
+            # Fallback if tags are inline with text
+            fallback_pattern = re.compile(r"<translation>(.*?)</translation>", re.IGNORECASE | re.DOTALL)
+            match = fallback_pattern.search(cleaned_text)
 
         if not match:
             raise ValueError(
@@ -82,8 +94,8 @@ class TranslationScriptEngine:
         for raw_line in inner_content.splitlines():
             line = raw_line.strip()
 
-            # Ignore empty lines, '#' comments, or parenthetical instructions
-            if not line or line.startswith("#") or (line.startswith("(") and not line.startswith("-")):
+            # Ignore empty lines or parenthetical notes
+            if not line or (line.startswith("(") and not line.startswith("-")):
                 continue
 
             header_match = img_header_re.match(line)
@@ -171,7 +183,6 @@ class TranslatorPanel(QWidget):
         self.chk_auto_inject.setStyleSheet(f"color: {Config.COLOR_TEXT}; font-size: 10px;")
         lay.addWidget(self.chk_auto_inject)
 
-        # Use '&&' so Qt renders a literal '&' instead of an underline mnemonic
         self.btn_load_txt = QPushButton("📥 Import .TXT && Populate Layers")
         self.btn_load_txt.setObjectName("PrimaryBtn")
         self.btn_load_txt.setFixedHeight(38)
@@ -211,10 +222,11 @@ class TranslatorPanel(QWidget):
     def _resolve_entries_to_paths(self, project_paths: list, entries: list, use_brackets: bool) -> dict:
         """
         Maps parsed script entries to actual project file paths either by [filename] brackets
-        (with fallback to index) or strictly by 1-based image order.
+        (exact match or stem match) or strictly by 1-based image order.
         """
         resolved = {}
         basename_to_path = {os.path.basename(p).lower(): p for p in project_paths}
+        stem_to_path = {os.path.splitext(os.path.basename(p))[0].lower(): p for p in project_paths}
 
         for entry in entries:
             lines = entry.get("lines", [])
@@ -223,10 +235,13 @@ class TranslatorPanel(QWidget):
 
             target_path = None
             if use_brackets and entry.get("filename"):
-                fname_key = entry["filename"].lower()
+                fname_key = entry["filename"].strip().lower()
                 target_path = basename_to_path.get(fname_key)
+                if target_path is None:
+                    stem_key = os.path.splitext(fname_key)[0]
+                    target_path = stem_to_path.get(stem_key)
 
-            # If brackets mode is disabled or filename wasn't found, fall back to 1-based index
+            # Fallback to 1-based index if brackets mode is unchecked
             if target_path is None and not use_brackets:
                 idx = entry.get("index", 0) - 1
                 if 0 <= idx < len(project_paths):
