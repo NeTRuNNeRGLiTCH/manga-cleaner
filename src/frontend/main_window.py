@@ -27,6 +27,8 @@ from src.backend.batch_engine import BatchEngine
 from src.backend.workers import AIWorker, get_pool, _run_flush_process
 from src.backend.stitcher import StitcherPanel
 from src.backend.translator import TranslatorPanel
+from src.frontend.project_reset import ProjectResetController
+
 
 #/////////////////////////////////#
 #          PAGE STATE ENUM        #
@@ -132,7 +134,15 @@ class MainWindow(QMainWindow):
         
         title = QLabel(f"{Config.APP_NAME.upper()} {Config.VERSION}")
         title.setStyleSheet(f"color: {Config.COLOR_ACCENT}; font-weight: bold; font-size: 18px;")
-        
+
+        btn_reset = QPushButton("RESET")
+        btn_reset.setObjectName("ActionBtn")
+        btn_reset.setToolTip(
+            "Close the current project in memory and prepare the studio for a new one"
+        )
+        btn_reset.setFixedSize(65, 30)
+        btn_reset.clicked.connect(lambda: ProjectResetController.reset(self))
+
         self.hw_mon = HardwareMonitor()
         
         btn_help = QPushButton("HELP")
@@ -170,6 +180,11 @@ class MainWindow(QMainWindow):
         nav_lay.addWidget(self.btn_editor)
         nav_lay.addWidget(self.btn_export)
         main_lay.addWidget(self.nav)
+
+        nav_lay.addWidget(btn_help)
+        nav_lay.addWidget(btn_open)
+        nav_lay.addWidget(btn_reset)
+        nav_lay.addWidget(self.btn_editor)
 
         split = QSplitter(Qt.Horizontal)
         
