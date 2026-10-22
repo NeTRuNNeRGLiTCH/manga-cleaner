@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import cv2
 import numpy as np
@@ -1492,7 +1493,8 @@ class MainWindow(QMainWindow):
             self.file_list.clear()
             self.canvas.clear_texts()
             self.current_img_path = None
-            for f in sorted(os.listdir(p)):
+            natural_key = lambda name: [int(s) if s.isdigit() else s.lower() for s in re.split(r"(\d+)", name)]
+            for f in sorted(os.listdir(p), key=natural_key):
                 if f.lower().endswith(('.jpg','.jpeg','.png','.webp')):
                     full_path = os.path.join(p, f)
                     self.page_states[full_path] = PageState.UNMODIFIED
