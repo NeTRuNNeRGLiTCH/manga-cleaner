@@ -7,7 +7,7 @@ from src.utils.paths import Paths
 #/////////////////////////////////#
 
 class Config:
-    APP_NAME = "MANGA-CLEANER"
+    APP_NAME = "MANGA-CLEANER STUDIO"
     VERSION = "3.3.2 BETA"
 
     # Deep Obsidian Theme
