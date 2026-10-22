@@ -424,6 +424,9 @@ class StitcherPanel(QWidget):
 
     def execute_stitch_export(self):
         if not self.stitch_blocks:
+            all_target_paths = [p for block in self.stitch_blocks for p in block]
+        if hasattr(self.mw, "_confirm_unplaced_texts") and not self.mw._confirm_unplaced_texts(all_target_paths):
+            return
             QMessageBox.information(
                 self,
                 "Queue Empty",

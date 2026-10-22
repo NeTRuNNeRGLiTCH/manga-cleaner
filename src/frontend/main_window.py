@@ -65,13 +65,15 @@ class MainWindow(QMainWindow):
         self.font_prefs_path = os.path.join(Paths.BUNDLE_DIR, "font_presets.json")
         self.favorite_fonts = set()
         self.font_aliases = {}
+        self.fav_only_pref = False
+        self.last_selected_font = "Arial"
         self.all_system_fonts = sorted(QFontDatabase.families())
         self.load_font_prefs()
         
         self.current_img_path = None
         self.batch_scan_type = "ocr"
         self.image_sessions = {}
-        self.pending_page_texts = {}  # Lazy queue for .txt dialogues before page is opened
+        self.pending_page_texts = {}  # Single source of truth for unplaced .txt dialogues
         self.page_states = {}
         self.task_queue = []
         self.total_tasks = 0
@@ -95,6 +97,8 @@ class MainWindow(QMainWindow):
                     data = json.load(f)
                     self.favorite_fonts = set(data.get("favorites", []))
                     self.font_aliases = dict(data.get("aliases", {}))
+                    self.fav_only_pref = bool(data.get("fav_only", False))
+                    self.last_selected_font = str(data.get("last_font", "Arial"))
             except Exception as e:
                 logger.error(f"Failed to load font presets: {e}")
 
@@ -103,7 +107,9 @@ class MainWindow(QMainWindow):
             with open(self.font_prefs_path, "w", encoding="utf-8") as f:
                 json.dump({
                     "favorites": sorted(list(self.favorite_fonts)),
-                    "aliases": self.font_aliases
+                    "aliases": self.font_aliases,
+                    "fav_only": bool(self.fav_only_pref),
+                    "last_font": self.last_selected_font
                 }, f, indent=2, ensure_ascii=False)
         except Exception as e:
             logger.error(f"Failed to save font presets: {e}")
@@ -128,8 +134,8 @@ class MainWindow(QMainWindow):
         
         self.hw_mon = HardwareMonitor()
         
-        btn_help = QPushButton("?")
-        btn_help.setFixedSize(30, 30)
+        btn_help = QPushButton("HELP")
+        btn_help.setFixedSize(50, 30)
         btn_help.clicked.connect(lambda: HelpSystem.show_guide(self))
         
         btn_open = QPushButton("IMPORT FOLDER")
@@ -196,6 +202,7 @@ class MainWindow(QMainWindow):
         #             CANVAS              #
         #/////////////////////////////////#
         self.canvas = MangaCanvas()
+        self.canvas.default_font_family = self.last_selected_font
         self.canvas.mask_changed.connect(lambda: self.history.push_mask_state(self.canvas.mask))
         self.canvas.mask_changed.connect(self.mark_current_modified)
         self.canvas.image_patch_created.connect(self.on_manual_image_patch)
@@ -337,9 +344,10 @@ class MainWindow(QMainWindow):
         self.font_search.textChanged.connect(self.populate_font_combo)
 
         self.chk_fav_only = QCheckBox("★ Only")
-        self.chk_fav_only.setToolTip("Show Only Favorite Fonts")
+        self.chk_fav_only.setToolTip("Show Only Favorite Fonts (Saved across sessions)")
         self.chk_fav_only.setStyleSheet(f"color: {Config.COLOR_ACCENT}; font-size: 10px; font-weight: bold;")
-        self.chk_fav_only.toggled.connect(self.populate_font_combo)
+        self.chk_fav_only.setChecked(self.fav_only_pref)
+        self.chk_fav_only.toggled.connect(self.on_fav_only_toggled)
 
         row_filter.addWidget(self.font_search, 1)
         row_filter.addWidget(self.chk_fav_only)
@@ -546,12 +554,17 @@ class MainWindow(QMainWindow):
 
     def get_selected_font_family(self) -> str:
         fam = self.font_combo.currentData(Qt.UserRole)
-        return fam if fam else "Arial"
+        return fam if fam else self.last_selected_font
+
+    def on_fav_only_toggled(self, checked: bool):
+        self.fav_only_pref = bool(checked)
+        self.save_font_prefs()
+        self.populate_font_combo()
 
     def populate_font_combo(self):
-        current_fam = self.get_selected_font_family()
-        if not current_fam or current_fam == "Arial":
-            current_fam = self.canvas.default_font_family
+        current_fam = self.font_combo.currentData(Qt.UserRole)
+        if not current_fam:
+            current_fam = self.last_selected_font or self.canvas.default_font_family
 
         query = self.font_search.text().strip().lower()
         fav_only = self.chk_fav_only.isChecked()
@@ -586,6 +599,10 @@ class MainWindow(QMainWindow):
 
         if self.font_combo.count() > 0:
             self.font_combo.setCurrentIndex(selected_idx)
+            active_fam = self.font_combo.currentData(Qt.UserRole)
+            if active_fam:
+                self.canvas.default_font_family = active_fam
+                self.last_selected_font = active_fam
         self.font_combo.blockSignals(False)
         self.update_font_fav_button_visual()
 
@@ -598,6 +615,10 @@ class MainWindow(QMainWindow):
         )
 
     def on_font_combo_selected(self):
+        fam = self.get_selected_font_family()
+        if fam:
+            self.last_selected_font = fam
+            self.save_font_prefs()
         self.update_font_fav_button_visual()
         self.on_text_style_ui_changed()
 
@@ -799,6 +820,10 @@ class MainWindow(QMainWindow):
         pending_count = len(self.canvas.pending_texts)
         self.lbl_text_layers.setText(f"PAGE TEXT LAYERS ({placed_count} Placed | {pending_count} Queued)")
 
+        # Keep single source of truth synced with active canvas
+        if self.current_img_path:
+            self.pending_page_texts[self.current_img_path] = list(self.canvas.pending_texts)
+
         # 1. Show Placed Canvas Text Items first ([ ✓ ])
         for idx, item in enumerate(self.canvas.text_items, start=1):
             preview = item.toPlainText().replace("\n", " ").strip() or "<Empty>"
@@ -822,6 +847,24 @@ class MainWindow(QMainWindow):
             self.text_layer_list.addItem(list_item)
 
         self.text_layer_list.blockSignals(False)
+        if hasattr(self, "translator_page"):
+            self.translator_page.refresh_active_page_preview()
+
+    def spawn_pending_text_by_index(self, p_idx: int):
+        """Unified helper to spawn a queued script line onto the canvas and pop it from pending_texts."""
+        if self.canvas.cv_img is None or self.canvas.is_locked:
+            return
+        if 0 <= p_idx < len(self.canvas.pending_texts):
+            text_str = self.canvas.pending_texts.pop(p_idx)
+            if self.current_img_path:
+                self.pending_page_texts[self.current_img_path] = list(self.canvas.pending_texts)
+            if self.canvas.current_tool == "NONE":
+                self.set_tool("TEXT", switch_category=False)
+            center_pt = self.canvas.mapToScene(self.canvas.viewport().rect().center())
+            item = self.canvas.add_text_item(center_pt, initial_text=text_str, enter_edit=False)
+            item.from_script_queue = True
+            self.mark_current_modified()
+            self.refresh_page_text_list()
 
     def on_text_layer_item_clicked(self, list_item):
         data = list_item.data(Qt.UserRole)
@@ -840,27 +883,17 @@ class MainWindow(QMainWindow):
                 self.sync_text_ui_from_item(target_item)
 
         elif kind == "PENDING":
-            if self.canvas.cv_img is None or self.canvas.is_locked:
-                return
-            p_idx = payload
-            if 0 <= p_idx < len(self.canvas.pending_texts):
-                text_str = self.canvas.pending_texts.pop(p_idx)
-                if self.current_img_path:
-                    self.pending_page_texts[self.current_img_path] = list(self.canvas.pending_texts)
-                if self.canvas.current_tool == "NONE":
-                    self.set_tool("TEXT", switch_category=False)
-                center_pt = self.canvas.mapToScene(self.canvas.viewport().rect().center())
-                self.canvas.add_text_item(center_pt, initial_text=text_str, enter_edit=False)
-                self.mark_current_modified()
-                self.refresh_page_text_list()
+            self.spawn_pending_text_by_index(int(payload))
 
     def on_clear_all_page_texts(self):
-        if not self.canvas.text_items and not self.canvas.pending_texts:
+        """Clears only placed text boxes on the canvas (returns script-spawned ones to queue, never wipes pending queue)."""
+        if not self.canvas.text_items:
             return
-        self.canvas.clear_texts()
+        self.canvas.clear_placed_texts_only(return_script_items_to_queue=True)
         if self.current_img_path:
-            self.pending_page_texts[self.current_img_path] = []
+            self.pending_page_texts[self.current_img_path] = list(self.canvas.pending_texts)
         self.mark_current_modified()
+        self.refresh_page_text_list()
 
     def sync_text_ui_from_item(self, item: MangaTextItem):
         self.font_combo.blockSignals(True)
@@ -1307,6 +1340,38 @@ class MainWindow(QMainWindow):
     #    BATCH & PHOTOSHOP BRIDGE     #
     #/////////////////////////////////#
 
+    def _confirm_unplaced_texts(self, target_paths: list) -> bool:
+        """Warns the user if any target page still has unplaced [ + ] script lines before exporting."""
+        if self.current_img_path:
+            self.pending_page_texts[self.current_img_path] = list(self.canvas.pending_texts)
+
+        pages_with_pending = []
+        total_pending_lines = 0
+        for p in target_paths:
+            q = self.pending_page_texts.get(p, [])
+            if q:
+                pages_with_pending.append(os.path.basename(p))
+                total_pending_lines += len(q)
+
+        if not pages_with_pending:
+            return True
+
+        preview = ", ".join(pages_with_pending[:5])
+        if len(pages_with_pending) > 5:
+            preview += f" (+{len(pages_with_pending) - 5} more)"
+
+        ans = QMessageBox.warning(
+            self,
+            "Unplaced Queued Dialogues",
+            f"There are {total_pending_lines} unplaced '[ + ]' dialogue line(s) across {len(pages_with_pending)} page(s):\n"
+            f"{preview}\n\n"
+            f"Unplaced lines in the queue will NOT be rendered onto the exported image.\n"
+            f"Do you want to continue anyway?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        return ans == QMessageBox.Yes
+
     def on_start_batch(self):
         if self.file_list.count() == 0: return
 
@@ -1330,6 +1395,9 @@ class MainWindow(QMainWindow):
             self.chk_all.setChecked(True)
             paths = [self.file_list.item(i).data(Qt.UserRole) for i in range(self.file_list.count())]
 
+        if not self._confirm_unplaced_texts(paths):
+            return
+
         self.batch_engine.initialize_batch(paths, fmt)
         self.is_batching = True
         self.total_lama_tasks += len(paths)
@@ -1351,8 +1419,7 @@ class MainWindow(QMainWindow):
                         "img": img.copy(),
                         "mask": QImage(img.shape[1], img.shape[0], QImage.Format_ARGB32),
                         "history": HistoryManager(Config.MAX_HISTORY),
-                        "texts": [],
-                        "pending_texts": list(self.pending_page_texts.get(path, []))
+                        "texts": []
                     }
                     self.image_sessions[path]["mask"].fill(Qt.transparent)
 
@@ -1445,16 +1512,18 @@ class MainWindow(QMainWindow):
         path_real = it.data(Qt.UserRole)
         if path_real == self.current_img_path: return 
 
+        # 1. Save outgoing page state before changing current_img_path
         if self.current_img_path and self.canvas.cv_img is not None:
             self.pending_page_texts[self.current_img_path] = list(self.canvas.pending_texts)
             self.image_sessions[self.current_img_path] = {
                 "img": self.canvas.cv_img.copy(),
                 "mask": self.canvas.mask.copy(),
                 "history": self.history,
-                "texts": self.canvas.get_texts_data(),
-                "pending_texts": list(self.canvas.pending_texts)
+                "texts": self.canvas.get_texts_data()
             }
 
+        # 2. Fetch incoming page's pending script queue BEFORE any canvas signals fire!
+        incoming_pending = list(self.pending_page_texts.get(path_real, []))
         self.current_img_path = path_real
 
         if path_real in self.image_sessions:
@@ -1463,9 +1532,8 @@ class MainWindow(QMainWindow):
             self.canvas.set_image(session["img"])
             self.canvas.mask = session["mask"].copy()
             self.canvas.update_mask_display()
+            self.canvas.pending_texts = incoming_pending
             self.canvas.load_texts_data(session.get("texts", []))
-            self.canvas.pending_texts = list(session.get("pending_texts", self.pending_page_texts.get(path_real, [])))
-            self.refresh_page_text_list()
         else:
             img_data = np.fromfile(path_real, dtype=np.uint8)
             img = cv2.imdecode(img_data, cv2.IMREAD_UNCHANGED)
@@ -1477,16 +1545,18 @@ class MainWindow(QMainWindow):
 
                 self.history = HistoryManager(Config.MAX_HISTORY)
                 self.canvas.set_image(img)
+                # Load incoming_pending AFTER clear_texts so clear_texts doesn't wipe it!
+                self.canvas.blockSignals(True)
                 self.canvas.clear_texts()
-                self.canvas.pending_texts = list(self.pending_page_texts.get(path_real, []))
+                self.canvas.blockSignals(False)
+                self.canvas.pending_texts = incoming_pending
                 self.refresh_page_text_list()
                 
                 self.image_sessions[path_real] = {
                     "img": img.copy(),
                     "mask": self.canvas.mask.copy(),
                     "history": self.history,
-                    "texts": [],
-                    "pending_texts": list(self.canvas.pending_texts)
+                    "texts": []
                 }
             else:
                 QMessageBox.warning(self, "Load Error", f"The file is corrupted or cannot be processed:\n{os.path.basename(path_real)}")
@@ -1498,6 +1568,8 @@ class MainWindow(QMainWindow):
 
     def on_export(self, fmt):
         if self.canvas.cv_img is None: return
+        if self.current_img_path and not self._confirm_unplaced_texts([self.current_img_path]):
+            return
         path, _ = QFileDialog.getSaveFileName(self, "Export", "", f"{fmt.upper()} (*.{fmt})")
         if path:
             composited = self.canvas.get_composited_image()
@@ -1518,6 +1590,8 @@ class MainWindow(QMainWindow):
 
     def on_editor_bridge(self, target="photoshop"):
         if self.canvas.cv_img is None or not self.current_img_path: return
+        if not self._confirm_unplaced_texts([self.current_img_path]):
+            return
 
         img_data = np.fromfile(self.current_img_path, dtype=np.uint8)
         orig = cv2.imdecode(img_data, cv2.IMREAD_UNCHANGED)

@@ -1,11 +1,18 @@
 import os
 import re
+import unicodedata
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
                              QPushButton, QListWidget, QListWidgetItem, 
                              QFileDialog, QMessageBox, QCheckBox)
 from PySide6.QtCore import Qt
 from src.utils.config import Config
 from src.utils.logger import logger
+
+
+def _nfc(s: str) -> str:
+    """Normalizes Unicode strings to NFC so decomposed NFD filenames/Hangul/Kana match byte-for-byte."""
+    return unicodedata.normalize("NFC", s) if s else ""
+
 
 #/////////////////////////////////#
 #    SCRIPT PARSER & GENERATOR    #
@@ -38,7 +45,7 @@ class TranslationScriptEngine:
 
         body_blocks = []
         for idx, path in enumerate(project_paths, start=1):
-            filename = os.path.basename(path)
+            filename = _nfc(os.path.basename(path))
             block = f"Image {idx} [{filename}]\n-\n-\n"
             body_blocks.append(block)
 
@@ -88,7 +95,7 @@ class TranslationScriptEngine:
             header_match = img_header_re.match(line)
             if header_match:
                 img_idx = int(header_match.group(1))
-                bracket_name = header_match.group(2).strip() if header_match.group(2) else None
+                bracket_name = _nfc(header_match.group(2).strip()) if header_match.group(2) else None
                 current_entry = {
                     "index": img_idx,
                     "filename": bracket_name,
@@ -97,8 +104,9 @@ class TranslationScriptEngine:
                 entries.append(current_entry)
                 continue
 
+            # Only standard ASCII hyphen-minus '-' counts as a valid dialogue bullet
             if line.startswith("-") and current_entry is not None:
-                dialogue = line[1:].strip()
+                dialogue = _nfc(line[1:].strip())
                 if dialogue:
                     dialogue = dialogue.replace("//", "\n")
                     current_entry["lines"].append(dialogue)
@@ -153,7 +161,8 @@ class TranslatorPanel(QWidget):
         self.chk_match_brackets = QCheckBox("Match pages by [filename] brackets")
         self.chk_match_brackets.setChecked(True)
         self.chk_match_brackets.setToolTip(
-            "When checked, attaches dialogues to the exact file inside [001.jpg] brackets.\n"
+            "When checked, attaches dialogues strictly to the file inside [001.jpg] brackets\n"
+            "(entries without brackets or with non-existent filenames are skipped and reported).\n"
             "When unchecked, ignores [] brackets and loads strictly by Image 1, Image 2 order."
         )
         self.chk_match_brackets.setStyleSheet(f"color: {Config.COLOR_TEXT}; font-size: 10px;")
@@ -175,7 +184,7 @@ class TranslatorPanel(QWidget):
         lay.addWidget(self.lbl_script_status)
 
         # --- SECTION 3: ACTIVE PAGE DIALOGUE PREVIEW ---
-        self.lbl_page_lines = QLabel("3. ACTIVE PAGE DIALOGUES (0)")
+        self.lbl_page_lines = QLabel("3. ACTIVE PAGE QUEUED DIALOGUES (0)")
         self.lbl_page_lines.setStyleSheet(f"color: {Config.COLOR_TEXT_DIM}; font-size: 9px; font-weight: bold; margin-top: 6px;")
         lay.addWidget(self.lbl_page_lines)
 
@@ -187,7 +196,7 @@ class TranslatorPanel(QWidget):
 
         row_actions = QHBoxLayout()
         self.btn_spawn_sel = QPushButton("+ Send to Canvas")
-        self.btn_spawn_sel.setToolTip("Creates a text box on the current page with the selected line")
+        self.btn_spawn_sel.setToolTip("Spawns the selected queued line onto the current page canvas")
         self.btn_spawn_sel.clicked.connect(self.on_spawn_selected_button)
 
         self.btn_go_typeset = QPushButton("Go to Typesetter ➔")
@@ -202,13 +211,15 @@ class TranslatorPanel(QWidget):
 
     def _resolve_entries_to_paths(self, project_paths: list, entries: list, use_brackets: bool) -> tuple:
         """
-        Maps parsed script entries to actual project file paths without decoding any images.
-        Returns (resolved_dict, unmatched_list).
+        Maps parsed script entries to actual project file paths using NFC Unicode normalization.
+        - If use_brackets is True: strictly requires [filename] brackets and matches by NFC basename or stem.
+          Any entry missing brackets or not matching a loaded file is skipped and reported in unmatched.
+        - If use_brackets is False: ignores brackets and maps strictly by 1-based image order.
         """
         resolved = {}
         unmatched = []
-        basename_to_path = {os.path.basename(p).lower(): p for p in project_paths}
-        stem_to_path = {os.path.splitext(os.path.basename(p))[0].lower(): p for p in project_paths}
+        basename_to_path = {_nfc(os.path.basename(p)).lower(): p for p in project_paths}
+        stem_to_path = {_nfc(os.path.splitext(os.path.basename(p))[0]).lower(): p for p in project_paths}
 
         for entry in entries:
             lines = entry.get("lines", [])
@@ -216,14 +227,19 @@ class TranslatorPanel(QWidget):
                 continue
 
             target_path = None
-            if use_brackets and entry.get("filename"):
-                fname_key = entry["filename"].strip().lower()
-                target_path = basename_to_path.get(fname_key)
-                if target_path is None:
-                    stem_key = os.path.splitext(fname_key)[0]
-                    target_path = stem_to_path.get(stem_key)
-                if target_path is None:
-                    unmatched.append(f"Image {entry.get('index')} [{entry.get('filename')}]")
+            if use_brackets:
+                raw_fname = entry.get("filename")
+                if raw_fname:
+                    fname_key = _nfc(raw_fname.strip()).lower()
+                    target_path = basename_to_path.get(fname_key)
+                    if target_path is None:
+                        stem_key = os.path.splitext(fname_key)[0]
+                        target_path = stem_to_path.get(stem_key)
+                    if target_path is None:
+                        unmatched.append(f"Image {entry.get('index')} [{raw_fname}]")
+                else:
+                    # Strictly reject entries without brackets when [filename] mode is active
+                    unmatched.append(f"Image {entry.get('index')} [missing brackets]")
             else:
                 idx = entry.get("index", 0) - 1
                 if 0 <= idx < len(project_paths):
@@ -334,9 +350,6 @@ class TranslatorPanel(QWidget):
             QMessageBox.critical(self, "Script Import Error", str(e))
 
     def queue_script_across_project(self, path_dialogues_map: dict, replace_existing: bool = True) -> int:
-        """
-        Lightweight lazy-queue: stores pending text strings per file path WITHOUT decoding images into RAM.
-        """
         if replace_existing:
             self.mw.pending_page_texts.clear()
             self.mw.canvas.pending_texts.clear()
@@ -351,32 +364,32 @@ class TranslatorPanel(QWidget):
             else:
                 self.mw.pending_page_texts[path].extend(lines)
 
-            if path in self.mw.image_sessions:
-                self.mw.image_sessions[path]["pending_texts"] = list(self.mw.pending_page_texts[path])
-
+            # Highlight page indicator in Project Assets so user sees which pages have dialogues!
+            self.mw.file_list.update_item_state(path, "modified")
             queued_count += 1
 
-            if path == self.mw.current_img_path:
-                self.mw.canvas.pending_texts = list(self.mw.pending_page_texts[path])
-                self.mw.refresh_page_text_list()
+        if self.mw.current_img_path:
+            self.mw.canvas.pending_texts = list(self.mw.pending_page_texts.get(self.mw.current_img_path, []))
+            self.mw.refresh_page_text_list()
 
         return queued_count
 
     def refresh_active_page_preview(self):
+        """Displays the remaining queued lines for the active page so Translator & Typesetter stay 100% synced."""
         self.dialogue_list.clear()
         curr_path = self.mw.current_img_path
         if not curr_path:
-            self.lbl_page_lines.setText("3. ACTIVE PAGE DIALOGUES (0)")
+            self.lbl_page_lines.setText("3. ACTIVE PAGE QUEUED DIALOGUES (0)")
             return
 
-        lines = self.path_dialogues_map.get(curr_path, [])
+        lines = self.mw.canvas.pending_texts
         fname = os.path.basename(curr_path)
-        self.lbl_page_lines.setText(f"3. [{fname}] DIALOGUES ({len(lines)})")
+        self.lbl_page_lines.setText(f"3. [{fname}] QUEUED ({len(lines)})")
 
-        for i, line in enumerate(lines, start=1):
+        for i, line in enumerate(lines):
             preview = line.replace("\n", " // ")
-            item = QListWidgetItem(f"{i}. {preview}")
-            item.setData(Qt.UserRole, line)
+            item = QListWidgetItem(f"[ + ] {i + 1}. {preview}")
+            item.setData(Qt.UserRole, i)
             self.dialogue_list.addItem(item)
 
     def on_spawn_selected_button(self):
@@ -385,12 +398,9 @@ class TranslatorPanel(QWidget):
             self.on_spawn_single_dialogue(curr)
 
     def on_spawn_single_dialogue(self, list_item):
-        if self.mw.canvas.cv_img is None:
+        """Uses the exact same pop-and-spawn pipeline as Typesetter so lines are never duplicated."""
+        if self.mw.canvas.cv_img is None or self.mw.canvas.is_locked:
             return
-        text_str = list_item.data(Qt.UserRole)
-        if not text_str:
-            return
-
-        center_pt = self.mw.canvas.mapToScene(self.mw.canvas.viewport().rect().center())
-        item = self.mw.canvas.add_text_item(center_pt, initial_text=text_str, enter_edit=False)
-        self.mw.canvas.texts_list_changed.emit()
+        p_idx = list_item.data(Qt.UserRole)
+        if p_idx is not None:
+            self.mw.spawn_pending_text_by_index(int(p_idx))

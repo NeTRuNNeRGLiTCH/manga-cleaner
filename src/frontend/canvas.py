@@ -22,7 +22,7 @@ class MangaTextItem(QGraphicsTextItem):
                  text_color=QColor(0, 0, 0), stroke_enabled=False,
                  stroke_color=QColor(255, 255, 255), stroke_width=3, stroke_opacity=100,
                  bold=False, italic=False, align_center=True,
-                 box_width=-1.0, rotation_angle=0.0):
+                 box_width=-1.0, rotation_angle=0.0, from_script_queue=False):
         super().__init__(text)
         self.font_family = font_family
         self.font_size = int(font_size)
@@ -35,6 +35,7 @@ class MangaTextItem(QGraphicsTextItem):
         self.is_italic = bool(italic)
         self.align_center = bool(align_center)
         self.box_width = float(box_width)
+        self.from_script_queue = bool(from_script_queue)
 
         self.setFlags(
             QGraphicsTextItem.ItemIsMovable |
@@ -302,7 +303,8 @@ class MangaTextItem(QGraphicsTextItem):
             "italic": self.is_italic,
             "align_center": self.align_center,
             "box_width": self.box_width,
-            "rotation": self.rotation()
+            "rotation": self.rotation(),
+            "from_script_queue": getattr(self, "from_script_queue", False)
         }
 
     @classmethod
@@ -320,7 +322,8 @@ class MangaTextItem(QGraphicsTextItem):
             italic=data.get("italic", False),
             align_center=data.get("align_center", True),
             box_width=data.get("box_width", -1.0),
-            rotation_angle=data.get("rotation", 0.0)
+            rotation_angle=data.get("rotation", 0.0),
+            from_script_queue=data.get("from_script_queue", False)
         )
         item.setPos(data.get("x", 0), data.get("y", 0))
         item.update_transform_origin()
@@ -468,6 +471,10 @@ class MangaCanvas(QGraphicsView):
     def remove_text_item(self, item):
         if item in self.text_items:
             self.text_items.remove(item)
+            if getattr(item, "from_script_queue", False):
+                txt = item.toPlainText().strip()
+                if txt:
+                    self.pending_texts.insert(0, txt)
         if item.scene() == self.scene:
             self.scene.removeItem(item)
         self.text_modified.emit()
@@ -477,6 +484,17 @@ class MangaCanvas(QGraphicsView):
         for item in list(self.text_items):
             if item.isSelected():
                 self.remove_text_item(item)
+
+    def clear_placed_texts_only(self, return_script_items_to_queue=True):
+        for item in list(self.text_items):
+            if return_script_items_to_queue and getattr(item, "from_script_queue", False):
+                txt = item.toPlainText().strip()
+                if txt:
+                    self.pending_texts.append(txt)
+            if item.scene() == self.scene:
+                self.scene.removeItem(item)
+        self.text_items.clear()
+        self.texts_list_changed.emit()
 
     def clear_texts(self):
         for item in list(self.text_items):
@@ -787,7 +805,12 @@ class MangaCanvas(QGraphicsView):
                         event.accept()
                         return
                     if 0 <= curr_pt.x() <= self.scene.width() and 0 <= curr_pt.y() <= self.scene.height():
-                        self.add_text_item(curr_pt)
+                        if self.pending_texts:
+                            next_line = self.pending_texts.pop(0)
+                            item = self.add_text_item(curr_pt, initial_text=next_line, enter_edit=False)
+                            item.from_script_queue = True
+                        else:
+                            self.add_text_item(curr_pt)
                         event.accept()
                         return
 
