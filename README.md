@@ -50,22 +50,6 @@ Manga Cleaner Studio unifies the complete scanlation pipeline into four speciali
 
 ---
 
-## 🛠️ Studio Workspaces & Capabilities
-
-Manga Cleaner Studio unifies the complete scanlation pipeline into four specialized workspaces, allowing teams to restore, translate, typeset, and assemble webtoons and manga in a single application.
-
----
-
-### 1. 🧹 Cleaner Workspace (AI Inpainting & Manual Touch-up)
-* **LaMa AI Inpainting Engine:** High-resolution inpainting powered by ONNX Runtime, utilizing Snap-to-8 Dynamic ROI reflection padding to clean scans without downscaling or quality loss.
-* **Automated Scanners:** Single-key OCR text detection (`O`) and transparency/alpha channel detection (`T`).
-* **Complete Mask Toolkit:** Brush (`B`), Eraser (`E`), Rectangle (`R`), Freehand Lasso (`L`), Polygonal Selection (`P`), and Bucket Fill (`G`).
-* **Manual Cleaner Brush (`D`):** Paint directly onto flat speech bubbles or backgrounds without triggering AI overhead.
-* **Eyedropper Color Picker (`I`):** Sample page pixels on the fly with `Alt + Left-Click`, supported by quick color swatches and instant pure-white reset.
-* **Smart History (Undo/Redo):** `Ctrl+Z` and `Ctrl+Shift+Z` intelligently differentiate between direct image strokes (in Manual mode) and selection mask edits.
-
----
-
 ### 2. 🔤 Typesetter Workspace (Typography & Styling)
 * **Interactive Transform Gizmo:** Center-locked scaling corner handles prevent coordinate drift while resizing. Horizontal handles adjust word-wrap boundary width, and the top handle controls free rotation (hold `Shift` to snap to 15° increments).
 * **Vector Outside Stroke:** Renders a clean outer outline beneath the letter fill with adjustable pixel width and alpha opacity. Includes one-click fill/stroke color swapping (`⇄`).
@@ -175,6 +159,21 @@ Image 2 [002.jpg]
 | `Ctrl + Shift + Scroll` | Rotate text in 5° steps |
 | `Ctrl + Z` / `Ctrl + Shift + Z` | Smart undo / redo (Image stroke in Manual mode, Mask otherwise) |
 | `Alt + Z` / `Alt + Shift + Z` | Image history undo / redo (AI clean patches) |
+
+---
+
+## 🗺️ Roadmap: The Future of Manga Cleaner
+
+### Python version
+
+- **v3.4.0 (planned):** Community-contributed multi-language support through translation files.
+- **v3.5.0 (under investigation):** Potential watermark-removal support using an AI model, subject to implementation feasibility and attribution to the model developer.
+
+The Python roadmap may change if development of the C++ version progresses faster than expected.
+
+### C++ version
+
+- **v4.0.0 (in development):** Planned AMD GPU support through DirectML execution providers and other community-requested improvements.
 
 ---
 

@@ -29,5 +29,5 @@ class Paths:
     def get_model(name):
         return os.path.join(Paths.MODELS, name)
 
-# Inicialización preventiva de directorios
+# Proactive directory initialization
 Paths.initialize()
