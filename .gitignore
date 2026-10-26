@@ -28,6 +28,7 @@ processed/
 cache/
 logs/
 temp/
+translations/
 *.log
 batch_id.json
 

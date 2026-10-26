@@ -279,7 +279,8 @@ class MangaTextItem(QGraphicsTextItem):
                         painter.drawRect(handles[k])
             else:
                 views = self.scene().views() if self.scene() else []
-                if views and getattr(views[0], "current_tool", "") == "TEXT":
+                if (views and getattr(views[0], "current_tool", "") == "TEXT" 
+                        and getattr(views[0], "show_text_guides", True)):
                     guide_pen = QPen(QColor(0, 212, 255, 110), 1.0, Qt.DotLine)
                     painter.setPen(guide_pen)
                     painter.setBrush(Qt.NoBrush)
@@ -407,6 +408,10 @@ class MangaCanvas(QGraphicsView):
         self._gizmo_start_font_size = 32
         self._gizmo_start_box_width = -1.0
         self._gizmo_start_dist = 1.0
+        self._gizmo_start_scene_pt = QPointF()
+        self._gizmo_center_scene = QPointF()
+
+        self.show_text_guides = True
 
         self.last_pt = QPointF()
         self.start_pt = QPointF()
@@ -429,6 +434,10 @@ class MangaCanvas(QGraphicsView):
         self.mask = None
         self.setMouseTracking(True)
         self.update_cursor_visuals()
+
+    def set_show_text_guides(self, enabled: bool):
+        self.show_text_guides = bool(enabled)
+        self.scene.update()
 
     # --- TEXT MANAGEMENT METHODS ---
     def is_editing_text(self):
@@ -775,8 +784,11 @@ class MangaCanvas(QGraphicsView):
                 self._active_gizmo_item = gizmo_item
                 self._active_gizmo_mode = handle
                 self._gizmo_start_font_size = gizmo_item.font_size
-                self._gizmo_start_box_width = gizmo_item._text_rect().width()
-                center_scene = gizmo_item.mapToScene(gizmo_item._text_rect().center())
+                r = gizmo_item._text_rect()
+                self._gizmo_start_box_width = gizmo_item.box_width if gizmo_item.box_width > 20.0 else r.width()
+                center_scene = gizmo_item.mapToScene(r.center())
+                self._gizmo_center_scene = center_scene
+                self._gizmo_start_scene_pt = curr_pt
                 self._gizmo_start_dist = max(10.0, math.hypot(
                     curr_pt.x() - center_scene.x(),
                     curr_pt.y() - center_scene.y()
@@ -894,9 +906,7 @@ class MangaCanvas(QGraphicsView):
 
         if self._active_gizmo_item is not None and self._active_gizmo_mode is not None:
             it = self._active_gizmo_item
-            r = it._text_rect()
-            center_local = r.center()
-            center_scene = it.mapToScene(center_local)
+            center_scene = self._gizmo_center_scene
 
             if self._active_gizmo_mode == "ROTATE":
                 dx = curr_pt.x() - center_scene.x()
@@ -912,29 +922,45 @@ class MangaCanvas(QGraphicsView):
                     curr_pt.x() - center_scene.x(),
                     curr_pt.y() - center_scene.y()
                 ))
-                ratio = curr_dist / self._gizmo_start_dist
+                SCALE_SENSITIVITY = 0.5
+                ratio = 1.0 + ((curr_dist - self._gizmo_start_dist) / self._gizmo_start_dist) * SCALE_SENSITIVITY
+                ratio = max(0.2, min(5.0, ratio))
                 new_size = max(6, min(300, int(round(self._gizmo_start_font_size * ratio))))
+                
                 if new_size != it.font_size:
                     it.font_size = new_size
                     if it.box_width > 20.0:
                         it.box_width = max(40.0, self._gizmo_start_box_width * ratio)
                     it.update_style()
+                    new_center = it.mapToScene(it._text_rect().center())
+                    it.moveBy(
+                        center_scene.x() - new_center.x(),
+                        center_scene.y() - new_center.y()
+                    )
                     it._notify_style_synced()
                     it._notify_modified()
 
             elif self._active_gizmo_mode in ("L", "R"):
-                old_center_scene = center_scene
-                local_pt = it.mapFromScene(curr_pt)
-                half_w = abs(local_pt.x() - center_local.x())
-                it.box_width = max(40.0, half_w * 2.0)
-                it.update_style()
-                new_center_scene = it.mapToScene(it._text_rect().center())
-                it.moveBy(
-                    old_center_scene.x() - new_center_scene.x(),
-                    old_center_scene.y() - new_center_scene.y()
-                )
-                it._notify_style_synced()
-                it._notify_modified()
+                rad = math.radians(it.rotation())
+                d_scene_x = curr_pt.x() - self._gizmo_start_scene_pt.x()
+                d_scene_y = curr_pt.y() - self._gizmo_start_scene_pt.y()
+                delta_local_x = d_scene_x * math.cos(rad) + d_scene_y * math.sin(rad)
+
+                delta_w = delta_local_x if self._active_gizmo_mode == "R" else -delta_local_x
+                WIDTH_SENSITIVITY = 0.6
+                new_w = max(40.0, self._gizmo_start_box_width + (delta_w * 2.0) * WIDTH_SENSITIVITY)
+                
+                current_w = it.box_width if it.box_width > 20.0 else it._text_rect().width()
+                if abs(new_w - current_w) >= 1.0:
+                    it.box_width = new_w
+                    it.update_style()
+                    new_center = it.mapToScene(it._text_rect().center())
+                    it.moveBy(
+                        center_scene.x() - new_center.x(),
+                        center_scene.y() - new_center.y()
+                    )
+                    it._notify_style_synced()
+                    it._notify_modified()
 
             event.accept()
             return
