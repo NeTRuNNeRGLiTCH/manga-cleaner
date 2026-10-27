@@ -1,11 +1,15 @@
 import os
 import re
+import subprocess
 import unicodedata
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
-                             QPushButton, QListWidget, QListWidgetItem, 
-                             QFileDialog, QMessageBox, QCheckBox)
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
+    QPushButton, QListWidget, QListWidgetItem, 
+    QFileDialog, QMessageBox, QCheckBox, QComboBox, QInputDialog
+)
 from PySide6.QtCore import Qt
 from src.utils.config import Config
+from src.utils.paths import Paths
 from src.utils.logger import logger
 
 
@@ -54,10 +58,6 @@ class TranslationScriptEngine:
 
     @staticmethod
     def parse_script(raw_text: str) -> list:
-        """
-        Strips '#' comment lines first, then extracts content strictly between
-        standalone <translation> and </translation> tags.
-        """
         non_comment_lines = [
             line for line in raw_text.splitlines()
             if not line.strip().startswith("#")
@@ -104,7 +104,6 @@ class TranslationScriptEngine:
                 entries.append(current_entry)
                 continue
 
-            # Only standard ASCII hyphen-minus '-' counts as a valid dialogue bullet
             if line.startswith("-") and current_entry is not None:
                 dialogue = _nfc(line[1:].strip())
                 if dialogue:
@@ -127,7 +126,13 @@ class TranslatorPanel(QWidget):
         self.loaded_script_path = None
         self.parsed_entries = []
         self.path_dialogues_map = {}  # { full_path: ["line1", "line2"] }
+        
+        # Base translations path (shared with MangaTranslate)
+        self.translations_root = getattr(Paths, "TRANSLATIONS", os.path.join(Paths.BUNDLE_DIR, "translations"))
+        os.makedirs(self.translations_root, exist_ok=True)
+        
         self.init_ui()
+        self.refresh_series_folders()
 
     def init_ui(self):
         lay = QVBoxLayout(self)
@@ -153,11 +158,52 @@ class TranslatorPanel(QWidget):
         self.btn_gen_txt.clicked.connect(self.on_generate_template)
         lay.addWidget(self.btn_gen_txt)
 
-        # --- SECTION 2: IMPORT SCRIPT ---
-        lbl_imp = QLabel("2. IMPORT TRANSLATED SCRIPT")
+        # --- SECTION 2: TRANSLATIONS FOLDER HIERARCHY ---
+        lbl_imp = QLabel("2. TRANSLATION SCRIPT SOURCE")
         lbl_imp.setStyleSheet(f"color: {Config.COLOR_TEXT_DIM}; font-size: 9px; font-weight: bold; margin-top: 6px;")
         lay.addWidget(lbl_imp)
 
+        # Series Subfolder Row
+        row_series = QHBoxLayout()
+        lbl_series = QLabel("Series:")
+        lbl_series.setStyleSheet(f"color: {Config.COLOR_TEXT_DIM}; font-size: 10px; min-width: 42px;")
+        
+        self.combo_series_folder = QComboBox()
+        self.combo_series_folder.setToolTip("Select series folder inside translations/")
+        self.combo_series_folder.currentIndexChanged.connect(self._on_series_folder_changed)
+
+        self.btn_new_series_folder = QPushButton("➕")
+        self.btn_new_series_folder.setToolTip("Create new series folder in translations/")
+        self.btn_new_series_folder.setFixedSize(26, 24)
+        self.btn_new_series_folder.setStyleSheet("background-color: #1e1e28; border: 1px solid #333342; font-size: 11px;")
+        self.btn_new_series_folder.clicked.connect(self.on_create_new_series_folder)
+
+        self.btn_open_folder = QPushButton("📁")
+        self.btn_open_folder.setToolTip("Open selected series folder in File Explorer")
+        self.btn_open_folder.setFixedSize(26, 24)
+        self.btn_open_folder.setStyleSheet("background-color: #1e1e28; border: 1px solid #333342; font-size: 11px;")
+        self.btn_open_folder.clicked.connect(self.on_open_translations_folder)
+
+        row_series.addWidget(lbl_series)
+        row_series.addWidget(self.combo_series_folder, 1)
+        row_series.addWidget(self.btn_new_series_folder)
+        row_series.addWidget(self.btn_open_folder)
+        lay.addLayout(row_series)
+
+        # Script File Selector Row
+        row_script_sel = QHBoxLayout()
+        lbl_pick = QLabel("Script:")
+        lbl_pick.setStyleSheet(f"color: {Config.COLOR_TEXT_DIM}; font-size: 10px; min-width: 42px;")
+        
+        self.combo_folder_scripts = QComboBox()
+        self.combo_folder_scripts.setToolTip("Scripts (.txt) available in the selected series folder")
+        self.combo_folder_scripts.activated.connect(self.on_folder_script_selected)
+
+        row_script_sel.addWidget(lbl_pick)
+        row_script_sel.addWidget(self.combo_folder_scripts, 1)
+        lay.addLayout(row_script_sel)
+
+        # Options Checkboxes
         self.chk_match_brackets = QCheckBox("Match pages by [filename] brackets")
         self.chk_match_brackets.setChecked(True)
         self.chk_match_brackets.setToolTip(
@@ -173,14 +219,35 @@ class TranslatorPanel(QWidget):
         self.chk_clear_existing.setStyleSheet(f"color: {Config.COLOR_TEXT}; font-size: 10px;")
         lay.addWidget(self.chk_clear_existing)
 
-        self.btn_load_txt = QPushButton("📥 Import .TXT && Queue in Layers")
-        self.btn_load_txt.setObjectName("PrimaryBtn")
-        self.btn_load_txt.setFixedHeight(38)
-        self.btn_load_txt.clicked.connect(self.on_import_script)
-        lay.addWidget(self.btn_load_txt)
+        # Action Buttons Row (Import Selected / Browse File)
+        row_import_btns = QHBoxLayout()
+        self.btn_load_selected_txt = QPushButton("📥 Import Selected")
+        self.btn_load_selected_txt.setObjectName("PrimaryBtn")
+        self.btn_load_selected_txt.setToolTip("Load and queue dialogues from the script chosen in the dropdown above")
+        self.btn_load_selected_txt.setFixedHeight(34)
+        self.btn_load_selected_txt.clicked.connect(self.on_import_selected_script)
+
+        self.btn_browse_txt = QPushButton("Browse .TXT...")
+        self.btn_browse_txt.setToolTip("Open file dialog to import a .txt script from any location")
+        self.btn_browse_txt.setFixedHeight(34)
+        self.btn_browse_txt.clicked.connect(self.on_import_script_dialog)
+
+        row_import_btns.addWidget(self.btn_load_selected_txt, 1)
+        row_import_btns.addWidget(self.btn_browse_txt, 1)
+        lay.addLayout(row_import_btns)
+
+        # Unload / Clear Script from Memory Button
+        self.btn_unload_script = QPushButton("🗑️ Unload Script from Memory")
+        self.btn_unload_script.setToolTip("Removes all pending dialogue queues from memory without resetting page edits")
+        self.btn_unload_script.setStyleSheet(
+            "background-color: #241418; color: #ff5566; border: 1px solid #441e22; font-size: 10px; font-weight: bold; padding: 4px;"
+        )
+        self.btn_unload_script.clicked.connect(self.on_unload_script)
+        lay.addWidget(self.btn_unload_script)
 
         self.lbl_script_status = QLabel("Loaded Script: None")
         self.lbl_script_status.setStyleSheet(f"color: {Config.COLOR_TEXT_DIM}; font-size: 10px;")
+        self.lbl_script_status.setWordWrap(True)
         lay.addWidget(self.lbl_script_status)
 
         # --- SECTION 3: ACTIVE PAGE DIALOGUE PREVIEW ---
@@ -206,16 +273,95 @@ class TranslatorPanel(QWidget):
         row_actions.addWidget(self.btn_go_typeset, 1)
         lay.addLayout(row_actions)
 
+    # --- TRANSLATIONS HIERARCHY METHODS ---
+    def refresh_series_folders(self):
+        """Populates the series combo with translations/ and its series subdirectories."""
+        current_data = self.combo_series_folder.currentData()
+        self.combo_series_folder.blockSignals(True)
+        self.combo_series_folder.clear()
+
+        base_dir = self.translations_root
+        self.combo_series_folder.addItem("📁 [Root] translations/", base_dir)
+
+        natural_key = lambda name: [int(s) if s.isdigit() else s.lower() for s in re.split(r"(\d+)", name)]
+        if os.path.exists(base_dir):
+            subdirs = [d for d in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, d))]
+            for d in sorted(subdirs, key=natural_key):
+                sub_path = os.path.join(base_dir, d)
+                self.combo_series_folder.addItem(f"📂 {d}", sub_path)
+
+        idx = self.combo_series_folder.findData(current_data)
+        if idx >= 0:
+            self.combo_series_folder.setCurrentIndex(idx)
+        else:
+            self.combo_series_folder.setCurrentIndex(0)
+
+        self.combo_series_folder.blockSignals(False)
+        self.refresh_scripts_for_selected_series()
+
+    def get_selected_series_dir(self) -> str:
+        data = self.combo_series_folder.currentData()
+        if data and os.path.exists(data):
+            return data
+        return self.translations_root
+
+    def _on_series_folder_changed(self):
+        self.refresh_scripts_for_selected_series()
+
+    def refresh_scripts_for_selected_series(self):
+        """Populates .txt files strictly belonging to the active series without auto-importing."""
+        target_dir = self.get_selected_series_dir()
+
+        self.combo_folder_scripts.blockSignals(True)
+        self.combo_folder_scripts.clear()
+        self.combo_folder_scripts.addItem("Select script...", "")
+
+        if os.path.exists(target_dir):
+            natural_key = lambda name: [int(s) if s.isdigit() else s.lower() for s in re.split(r"(\d+)", name)]
+            txt_files = [
+                f for f in os.listdir(target_dir) 
+                if f.lower().endswith(".txt") and os.path.isfile(os.path.join(target_dir, f))
+            ]
+            for fname in sorted(txt_files, key=natural_key):
+                full_path = os.path.join(target_dir, fname)
+                self.combo_folder_scripts.addItem(fname, full_path)
+
+        self.combo_folder_scripts.setCurrentIndex(0)
+        self.combo_folder_scripts.blockSignals(False)
+
+    def on_create_new_series_folder(self):
+        folder_name, ok = QInputDialog.getText(
+            self, "New Series Folder", "Enter series / comic title name:"
+        )
+        if ok and folder_name.strip():
+            clean_name = re.sub(r'[\\/*?:"<>|]', "", folder_name.strip())
+            new_path = os.path.join(self.translations_root, clean_name)
+            os.makedirs(new_path, exist_ok=True)
+            self.refresh_series_folders()
+            idx = self.combo_series_folder.findData(new_path)
+            if idx >= 0:
+                self.combo_series_folder.setCurrentIndex(idx)
+
+    def on_folder_script_selected(self, index: int):
+        if index <= 0:
+            return
+        selected_path = self.combo_folder_scripts.itemData(index)
+        if selected_path and os.path.exists(selected_path):
+            self.import_script_from_path(selected_path)
+
+    def on_open_translations_folder(self):
+        folder = self.get_selected_series_dir()
+        os.makedirs(folder, exist_ok=True)
+        if os.name == "nt":
+            os.startfile(folder)
+        else:
+            subprocess.Popen(["xdg-open", folder])
+
+    # --- PROJECT RESOLUTION HELPERS ---
     def _get_all_project_paths(self) -> list:
         return [self.mw.file_list.item(i).data(Qt.UserRole) for i in range(self.mw.file_list.count())]
 
     def _resolve_entries_to_paths(self, project_paths: list, entries: list, use_brackets: bool) -> tuple:
-        """
-        Maps parsed script entries to actual project file paths using NFC Unicode normalization.
-        - If use_brackets is True: strictly requires [filename] brackets and matches by NFC basename or stem.
-          Any entry missing brackets or not matching a loaded file is skipped and reported in unmatched.
-        - If use_brackets is False: ignores brackets and maps strictly by 1-based image order.
-        """
         resolved = {}
         unmatched = []
         basename_to_path = {_nfc(os.path.basename(p)).lower(): p for p in project_paths}
@@ -238,7 +384,6 @@ class TranslatorPanel(QWidget):
                     if target_path is None:
                         unmatched.append(f"Image {entry.get('index')} [{raw_fname}]")
                 else:
-                    # Strictly reject entries without brackets when [filename] mode is active
                     unmatched.append(f"Image {entry.get('index')} [missing brackets]")
             else:
                 idx = entry.get("index", 0) - 1
@@ -254,6 +399,7 @@ class TranslatorPanel(QWidget):
 
         return resolved, unmatched
 
+    # --- SCRIPT OPERATIONS ---
     def on_generate_template(self):
         paths = self._get_all_project_paths()
         if not paths:
@@ -264,8 +410,8 @@ class TranslatorPanel(QWidget):
             )
             return
 
-        default_dir = os.path.dirname(paths[0])
-        default_file = os.path.join(default_dir, "translation_script.txt")
+        target_dir = self.get_selected_series_dir()
+        default_file = os.path.join(target_dir, "translation_script.txt")
         save_path, _ = QFileDialog.getSaveFileName(
             self, "Save Translation Template", default_file, "Text Files (*.txt)"
         )
@@ -280,6 +426,7 @@ class TranslatorPanel(QWidget):
             with open(save_path, "w", encoding="utf-8") as f:
                 f.write(content)
             logger.info(f"[TRANSLATOR] Generated template for {len(paths)} images: {save_path}")
+            self.refresh_scripts_for_selected_series()
             QMessageBox.information(
                 self,
                 "Template Generated",
@@ -289,7 +436,16 @@ class TranslatorPanel(QWidget):
             logger.error(f"[TRANSLATOR] Failed to generate template: {e}")
             QMessageBox.critical(self, "Error", f"Could not save template:\n{e}")
 
-    def on_import_script(self):
+    def on_import_selected_script(self):
+        idx = self.combo_folder_scripts.currentIndex()
+        if idx <= 0:
+            QMessageBox.warning(self, "No Script Selected", "Please select a script from the dropdown or click 'Browse .TXT...'.")
+            return
+        selected_path = self.combo_folder_scripts.itemData(idx)
+        if selected_path and os.path.exists(selected_path):
+            self.import_script_from_path(selected_path)
+
+    def on_import_script_dialog(self):
         paths = self._get_all_project_paths()
         if not paths:
             QMessageBox.warning(
@@ -299,11 +455,19 @@ class TranslatorPanel(QWidget):
             )
             return
 
-        default_dir = os.path.dirname(paths[0])
+        target_dir = self.get_selected_series_dir()
         open_path, _ = QFileDialog.getOpenFileName(
-            self, "Import Translation Script (.txt)", default_dir, "Text Files (*.txt)"
+            self, "Import Translation Script (.txt)", target_dir, "Text Files (*.txt)"
         )
         if not open_path:
+            return
+
+        self.import_script_from_path(open_path)
+
+    def import_script_from_path(self, open_path: str):
+        paths = self._get_all_project_paths()
+        if not paths:
+            QMessageBox.warning(self, "No Images Loaded", "Please import an image folder first.")
             return
 
         try:
@@ -340,14 +504,53 @@ class TranslatorPanel(QWidget):
                 self,
                 "Script Queued in Layers",
                 f"Matched by: {'[filename] brackets' if use_brackets else 'Image Order'}\n"
-                f"Queued {total_lines} dialogue lines across {queued_pages} pages (0 MB extra RAM used)."
+                f"Queued {total_lines} dialogue lines across {queued_pages} pages.\n"
                 f"{unmatched_msg}\n"
-                f"In TYPESETTER -> PAGE TEXT LAYERS, simply click any '[ + ]' line to spawn it on the canvas with your currently selected font!"
+                f"In TYPESETTER -> PAGE TEXT LAYERS, simply click any '[ + ]' line to spawn it on the canvas!"
             )
 
         except Exception as e:
             logger.error(f"[TRANSLATOR] Script import error: {e}")
             QMessageBox.critical(self, "Script Import Error", str(e))
+
+    def on_unload_script(self):
+        """Clears all queued [ + ] lines across all loaded pages and frees in-memory translation mappings."""
+        if not self.mw.pending_page_texts and not self.mw.canvas.pending_texts and not self.path_dialogues_map:
+            QMessageBox.information(self, "Notice", "There are no queued script dialogues in memory to unload.")
+            return
+
+        ans = QMessageBox.question(
+            self,
+            "Unload Script",
+            "Are you sure you want to unload the current translation script from memory?\n\n"
+            "• All unplaced '[ + ]' dialogue queues across all pages will be removed.\n"
+            "• Placed texts already on the canvas will NOT be deleted.",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        if ans != QMessageBox.Yes:
+            return
+
+        # 1. Clear memory caches
+        self.loaded_script_path = None
+        self.parsed_entries.clear()
+        self.path_dialogues_map.clear()
+        self.mw.pending_page_texts.clear()
+        self.mw.canvas.pending_texts.clear()
+
+        # 2. Reset combo indicator & status label
+        self.combo_folder_scripts.setCurrentIndex(0)
+        self.lbl_script_status.setText("Loaded Script: None")
+
+        # 3. Synchronize both Translator and Typesetter layer lists
+        self.refresh_active_page_preview()
+        self.mw.refresh_page_text_list()
+
+        QMessageBox.information(
+            self,
+            "Script Unloaded",
+            "The translation script has been unloaded from memory successfully."
+        )
 
     def queue_script_across_project(self, path_dialogues_map: dict, replace_existing: bool = True) -> int:
         if replace_existing:
@@ -364,8 +567,6 @@ class TranslatorPanel(QWidget):
             else:
                 self.mw.pending_page_texts[path].extend(lines)
 
-            # Highlight page indicator in Project Assets so user sees which pages have dialogues!
-            self.mw.file_list.update_item_state(path, "modified")
             queued_count += 1
 
         if self.mw.current_img_path:
@@ -398,7 +599,6 @@ class TranslatorPanel(QWidget):
             self.on_spawn_single_dialogue(curr)
 
     def on_spawn_single_dialogue(self, list_item):
-        """Uses the exact same pop-and-spawn pipeline as Typesetter so lines are never duplicated."""
         if self.mw.canvas.cv_img is None or self.mw.canvas.is_locked:
             return
         p_idx = list_item.data(Qt.UserRole)

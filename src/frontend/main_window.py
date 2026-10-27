@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import shutil
 import cv2
 import numpy as np
 from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
@@ -40,8 +41,9 @@ class PageState(Enum):
     READY = auto()
     ERROR = auto()
 
+
 #/////////////////////////////////#
-#    STUDIO MAIN CONTROLLER       #
+#     STUDIO MAIN CONTROLLER      #
 #/////////////////////////////////#
 
 class MainWindow(QMainWindow):
@@ -64,8 +66,17 @@ class MainWindow(QMainWindow):
         self.is_space_moving = False
         self.pre_space_tool = "NONE"
 
-        # Font Filter, Favorites & Alias Database
-        self.font_prefs_path = os.path.join(Paths.BUNDLE_DIR, "font_presets.json")
+        # Font Filter, Favorites & Alias Database (stored in cache/)
+        self.font_prefs_path = os.path.join(Paths.CACHE, "font_presets.json")
+        
+        # Automatic transparent migration from previous legacy locations
+        old_preset_path = os.path.join(Paths.BUNDLE_DIR, "font_presets.json")
+        if not os.path.exists(self.font_prefs_path) and os.path.exists(old_preset_path):
+            try:
+                shutil.move(old_preset_path, self.font_prefs_path)
+            except Exception as e:
+                logger.warning(f"Could not migrate legacy font presets: {e}")
+
         self.favorite_fonts = set()
         self.font_aliases = {}
         self.fav_only_pref = False
@@ -125,7 +136,7 @@ class MainWindow(QMainWindow):
         main_lay.setSpacing(0)
 
         #/////////////////////////////////#
-        #            NAVIGATION           #
+        #           NAVIGATION            #
         #/////////////////////////////////#
         self.nav = QFrame()
         self.nav.setObjectName("NavBar")
@@ -177,14 +188,10 @@ class MainWindow(QMainWindow):
         nav_lay.addSpacing(10)
         nav_lay.addWidget(btn_help)
         nav_lay.addWidget(btn_open)
+        nav_lay.addWidget(btn_reset)
         nav_lay.addWidget(self.btn_editor)
         nav_lay.addWidget(self.btn_export)
         main_lay.addWidget(self.nav)
-
-        nav_lay.addWidget(btn_help)
-        nav_lay.addWidget(btn_open)
-        nav_lay.addWidget(btn_reset)
-        nav_lay.addWidget(self.btn_editor)
 
         split = QSplitter(Qt.Horizontal)
         
@@ -511,10 +518,21 @@ class MainWindow(QMainWindow):
         tp_lay.addWidget(self.stroke_settings_frame)
         self.stroke_settings_frame.setVisible(False)
 
-        # Page Text Detector List
+        # Page Text Detector List & Preview Outlines Toggle
+        row_layers_hdr = QHBoxLayout()
         self.lbl_text_layers = QLabel("PAGE TEXT LAYERS (0 Placed | 0 Queued)")
         self.lbl_text_layers.setStyleSheet(f"color: {Config.COLOR_TEXT_DIM}; font-size: 9px; font-weight: bold; margin-top: 4px;")
-        tp_lay.addWidget(self.lbl_text_layers)
+
+        self.chk_show_guides = QCheckBox("Show Outlines")
+        self.chk_show_guides.setToolTip("Toggle bounding boxes visibility for unselected text (Preview mode)")
+        self.chk_show_guides.setStyleSheet(f"color: {Config.COLOR_ACCENT}; font-size: 10px; font-weight: bold;")
+        self.chk_show_guides.setChecked(True)
+        self.chk_show_guides.toggled.connect(self.canvas.set_show_text_guides)
+
+        row_layers_hdr.addWidget(self.lbl_text_layers)
+        row_layers_hdr.addStretch()
+        row_layers_hdr.addWidget(self.chk_show_guides)
+        tp_lay.addLayout(row_layers_hdr)
 
         self.text_layer_list = QListWidget()
         self.text_layer_list.setMinimumHeight(110)
@@ -565,7 +583,7 @@ class MainWindow(QMainWindow):
         self.set_category("CLEANER")
 
     #/////////////////////////////////#
-    #     FONT FILTER & ALIAS LOGIC   #
+    #    FONT FILTER & ALIAS LOGIC    #
     #/////////////////////////////////#
 
     def get_selected_font_family(self) -> str:
@@ -671,7 +689,7 @@ class MainWindow(QMainWindow):
             self.populate_font_combo()
 
     #/////////////////////////////////#
-    #     CATEGORY & TOOL SWITCHING   #
+    #    CATEGORY & TOOL SWITCHING    #
     #/////////////////////////////////#
 
     def set_category(self, category: str):
@@ -1101,7 +1119,7 @@ class MainWindow(QMainWindow):
             self.file_list.item(i).setCheckState(state)
 
     #/////////////////////////////////#
-    #       HISTORY OPERATIONS        #
+    #        HISTORY OPERATIONS       #
     #/////////////////////////////////#
 
     def on_smart_ctrl_z(self):
