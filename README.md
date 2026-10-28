@@ -1,20 +1,20 @@
-# 🌌 MANGA CLEANER STUDIO v3.3.3: The Workspaces & Typesetting Update
+# 🌌 MANGA CLEANER STUDIO v3.4.0
 
-**High-Fidelity AI-Powered Scanlation Restoration Suite**
+**AI-assisted manga and webtoon cleanup, typesetting, translation workflow, and page assembly.**
 
-[![Download v3.3.3](https://img.shields.io/badge/DOWNLOAD-v3.3.3-00d4ff?style=for-the-badge&logo=github)](https://github.com/NeTRuNNeRGLiTCH/manga-cleaner/releases)
+[![Download v3.4.0](https://img.shields.io/badge/DOWNLOAD-v3.4.0-00d4ff?style=for-the-badge&logo=github)](https://github.com/NeTRuNNeRGLiTCH/manga-cleaner/releases)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=for-the-badge)](https://opensource.org/licenses/Apache-2.0)
 [![Python Version](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-blue?style=for-the-badge)](https://www.python.org/)
 [![Downloads](https://img.shields.io/github/downloads/NeTRuNNeRGLiTCH/manga-cleaner/total?color=blue&style=for-the-badge)](https://github.com/NeTRuNNeRGLiTCH/manga-cleaner/releases)
 [![Sibling App](https://img.shields.io/badge/Sibling_Project-Manga_Translate-ff007f?style=for-the-badge)](https://github.com/santiagodvergara05-debug/manga-translate-studio)
 
-Building on the modular Studio engine introduced in v3.0.0 and the toolkit expansion in v3.2.0, **Manga Cleaner Studio v3.3.3** expands Manga Cleaner into a multi-workspace scanlation tool. Four dedicated workspaces—**Cleaner**, **Typesetter**, **Stitcher**, and **Translator**—help scanlation teams move seamlessly from AI restoration to translation synchronization, text placement, and vertical page stitching without leaving the application.
+**Manga Cleaner Studio** is a desktop toolkit for preparing manga and webtoon pages. It combines AI-assisted image cleanup and manual mask editing with OCR and transparency scanning, text placement and styling, script synchronization, and lossless vertical stitching. Its multi-language interface includes English, Spanish, Brazilian Portuguese, French, and Egyptian Arabic catalogs, with English fallback for untranslated text.
 
 ---
 
-## 🖥️ Studio Preview (v3.3.3 UI)
+## 🖥️ Studio Preview (v3.4.0 UI)
 
-![Manga Cleaner Studio v3.3.3 UI](.github/assets/ui.png)
+![Manga Cleaner Studio v3.4.0 UI](.github/assets/ui.png)
 
 *Featuring the Obsidian Dark Theme, the two-column tool layout, live file-queue locking, and the four-workspace switcher (Cleaner · Typesetter · Stitcher · Translator).*
 
@@ -30,7 +30,7 @@ Prefer a visual guide? Watch the video walkthrough:
 
 [![Watch the Video Tutorial](https://img.youtube.com/vi/9psnwpJG3aE/hqdefault.jpg)](https://www.youtube.com/watch?v=9psnwpJG3aE)
 
-*Note: The tutorial was recorded using version 3.2.0; newer v3.3.3 Studio workspaces (Typesetter, Translator, Stitcher) operate directly inside the main UI.*
+*Note: The tutorial was recorded using version 3.2.0. The current 3.4.0 interface and features may differ; use the sections below as the up-to-date reference.*
 
 ---
 
