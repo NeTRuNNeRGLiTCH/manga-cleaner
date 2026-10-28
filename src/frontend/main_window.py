@@ -15,6 +15,7 @@ from PySide6.QtCore import Qt, QTimer, QThread
 from enum import Enum, auto
 from src.frontend.widgets import (FileListWidget, ToolGroup, LabeledSlider, 
                                 HardwareMonitor, CategorySelector, ColorSwatchButton)
+from src.utils.i18n import tr
 from src.frontend.canvas import MangaCanvas, MangaTextItem
 from src.frontend.help_system import HelpSystem
 from src.utils.system_info import SystemMonitor
@@ -266,7 +267,7 @@ class MainWindow(QMainWindow):
         cl_lay.setSpacing(6)
 
         self.tools = ToolGroup(
-            "Cleaner & Mask Tools",
+            tr("main.cleaner_mask_tools"),
             ["MOVE", "BRUSH", "ERASER", "RECT", "LASSO", "POLY", "BUCKET", "CLEAR", "MANUAL"],
             full_width_buttons=["MANUAL"]
         )
@@ -350,7 +351,7 @@ class MainWindow(QMainWindow):
         tp_lay.setContentsMargins(4, 4, 4, 4)
         tp_lay.setSpacing(6)
 
-        self.type_tools = ToolGroup("Typesetter Tools", ["MOVE", "TEXT"])
+        self.type_tools = ToolGroup(tr("main.typesetter_tools"), ["MOVE", "TEXT"])
         self.type_tools.buttons["MOVE"].clicked.connect(lambda: self.set_tool("NONE"))
         self.type_tools.buttons["TEXT"].clicked.connect(lambda: self.set_tool("TEXT"))
         tp_lay.addWidget(self.type_tools)
@@ -1665,11 +1666,15 @@ class BatchSetupDialog(QDialog):
         self.setStyleSheet(f"background-color: {Config.COLOR_PANEL}; color: {Config.COLOR_TEXT};")
 
         self.scan_mode = QComboBox()
-        self.scan_mode.addItems(["none", "Mask", "OCR Scan", "Transparency Scan"])
+        for _id, _key in (("none", "main.none"), ("Mask", "main.mask"),
+                          ("OCR Scan", "main.ocr_scan"), ("Transparency Scan", "main.transparency_scan")):
+            self.scan_mode.addItem(tr(_key), _id)
         self.scan_mode.setStyleSheet(f"background-color: {Config.COLOR_BG}; border: 1px solid #2a2a32; padding: 4px;")
 
         self.export_fmt = QComboBox()
-        self.export_fmt.addItems(["none", "png", "jpg", "photoshop", "photopea"])
+        for _id, _key in (("none", "main.none"), ("png", "main.png"), ("jpg", "main.jpg"),
+                          ("photoshop", "main.photoshop"), ("photopea", "main.photopea")):
+            self.export_fmt.addItem(tr(_key), _id)
         self.export_fmt.setStyleSheet(f"background-color: {Config.COLOR_BG}; border: 1px solid #2a2a32; padding: 4px;")
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
@@ -1683,4 +1688,4 @@ class BatchSetupDialog(QDialog):
         layout.addWidget(buttons)
 
     def get_results(self):
-        return self.scan_mode.currentText(), self.export_fmt.currentText()
+        return self.scan_mode.currentData(), self.export_fmt.currentData()

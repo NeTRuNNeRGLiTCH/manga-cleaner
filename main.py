@@ -4,11 +4,12 @@ import ctypes
 import multiprocessing
 from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QFont, QIcon
-from PySide6.QtCore import Qt, qInstallMessageHandler
+from PySide6.QtCore import Qt, qInstallMessageHandler, QLocale
 from src.frontend.main_window import MainWindow
 from src.utils.logger import logger
 from src.utils.paths import Paths
 from src.utils.config import Config
+from src.utils import i18n
 
 #/////////////////////////////////#
 #      QT MESSAGE FILTER          #
@@ -38,8 +39,14 @@ def main():
     if sys.stderr is None:
         sys.stderr = open(os.devnull, "w")
 
-    # 1. Initialize System Paths
+    # 1. Initialize System Paths & Localization Engine
     Paths.initialize()
+    i18n.init(
+        bundled_dir=Paths.LOCALES_BUNDLED,
+        user_dir=Paths.LOCALES_USER,
+        settings_path=os.path.join(Paths.CACHE, "settings.json"),
+        system_locale=QLocale.system().name(),
+    )
     
     # 2. Setup Logging & Filters
     qInstallMessageHandler(qt_message_handler)

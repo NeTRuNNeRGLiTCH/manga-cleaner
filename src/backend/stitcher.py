@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
 from PySide6.QtCore import Qt, QCoreApplication
 from src.utils.config import Config
 from src.utils.logger import logger
+from src.utils.i18n import tr
 
 
 def _natural_sort_key(path: str) -> list:
@@ -299,7 +300,8 @@ class StitcherPanel(QWidget):
         lbl_f = QLabel("Format:")
         lbl_f.setStyleSheet(f"color: {Config.COLOR_TEXT_DIM}; font-size: 10px;")
         self.fmt_combo = QComboBox()
-        self.fmt_combo.addItems(["PNG (100% Lossless)", "JPG (100% Quality 4:4:4)"])
+        self.fmt_combo.addItem(tr("stitcher.png_100_lossless"), "png")
+        self.fmt_combo.addItem(tr("stitcher.jpg_100_quality_4_4_4"), "jpg")
         self.fmt_combo.setStyleSheet(f"background: {Config.COLOR_BG}; border: 1px solid #2a2a32; padding: 4px; font-size: 11px;")
         row_fmt.addWidget(lbl_f)
         row_fmt.addWidget(self.fmt_combo, 1)
@@ -572,7 +574,7 @@ class StitcherPanel(QWidget):
         if not out_dir:
             return
 
-        fmt = "png" if "PNG" in self.fmt_combo.currentText() else "jpg"
+        fmt = self.fmt_combo.currentData()
         max_h = self.spin_max_h.value() if self.chk_height_guard.isChecked() else 0
 
         progress = QProgressDialog("Stitching blocks losslessly...", "Cancel", 0, len(self.stitch_blocks), self)

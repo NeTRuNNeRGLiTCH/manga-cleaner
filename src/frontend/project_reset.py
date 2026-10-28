@@ -16,6 +16,7 @@ from PySide6.QtWidgets import QMessageBox
 
 from src.utils.config import Config
 from src.utils.history import HistoryManager
+from src.utils.i18n import tr
 from src.utils.logger import logger
 
 
@@ -36,9 +37,8 @@ class ProjectResetController:
         ):
             QMessageBox.warning(
                 mw,
-                "Studio Busy",
-                "Cannot reset the project while an AI task or batch process is active.\n\n"
-                "Wait for processing to finish, then try again.",
+                tr("reset.studio_busy"),
+                tr("reset.cannot_reset_the_project_while_an"),
             )
             return False
 
@@ -60,11 +60,8 @@ class ProjectResetController:
 
         answer = QMessageBox.question(
             mw,
-            "Reset Project",
-            "Clear the current project from memory?\n\n"
-            "This removes loaded pages, masks, text layers, pending dialogues, histories, "
-            "and Stitcher/Translator project data. Original image files and saved font "
-            "preferences will not be deleted.",
+            tr("reset.reset_project"),
+            tr("reset.clear_the_current_project_from_memory"),
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
         )
@@ -164,7 +161,7 @@ class ProjectResetController:
             translator.loaded_script_path = None
             translator.parsed_entries.clear()
             translator.path_dialogues_map.clear()
-            translator.lbl_script_status.setText("Loaded Script: None")
+            translator.lbl_script_status.setText(tr("common.loaded_script_none"))
             translator.refresh_active_page_preview()
 
         mw.refresh_page_text_list()
@@ -190,10 +187,8 @@ class ProjectResetController:
         logger.info("[STUDIO] Project reset complete; project-specific in-memory state cleared.")
         QMessageBox.information(
             mw,
-            "Project Reset Complete",
-            "The studio is ready for a new project.\n\n"
-            "Memory usage should decrease as resources are released, although the operating "
-            "system and native libraries may retain some reserved memory.",
+            tr("reset.project_reset_complete"),
+            tr("reset.the_studio_is_ready_for_a"),
         )
         return True
 

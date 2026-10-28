@@ -7,6 +7,7 @@ from PySide6.QtCore import Qt, QRect, Signal
 from PySide6.QtGui import QIcon, QColor
 from src.utils.config import Config
 from src.utils.paths import Paths
+from src.utils.i18n import tr_label
 
 #/////////////////////////////////#
 #    STUDIO COMPONENT LIBRARY     #
@@ -112,7 +113,7 @@ class CategorySelector(QFrame):
         self.buttons = {}
 
         for i, name in enumerate(categories):
-            btn = QPushButton(name)
+            btn = QPushButton(tr_label(name))   # visible label; `name` stays the internal ID
             btn.setCheckable(True)
             btn.setAutoExclusive(True)
             btn.setFixedHeight(28)
@@ -146,7 +147,7 @@ class ToolGroup(QFrame):
         row = 0
         col = 0
         for name in button_configs:
-            btn = QPushButton(name)
+            btn = QPushButton(tr_label(name))   # visible label; `name` stays the internal ID
             if name in checkable: 
                 btn.setCheckable(True)
                 btn.setAutoExclusive(True) 
