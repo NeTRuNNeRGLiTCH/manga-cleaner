@@ -152,20 +152,19 @@ class StitcherPanel(QWidget):
         lay.setContentsMargins(4, 6, 4, 4)
         lay.setSpacing(6)
 
-        title = QLabel("LOSSLESS IMAGE STITCHER")
+        title = QLabel(tr("stitcher.lossless_image_stitcher"))
         title.setStyleSheet(f"color: {Config.COLOR_ACCENT}; font-size: 11px; font-weight: bold;")
         lay.addWidget(title)
 
         # --- GROUPING MODE ---
-        lbl_mode = QLabel("1. GROUPING / BLOCK BUILDER")
+        lbl_mode = QLabel(tr("stitcher.1_grouping_block_builder"))
         lbl_mode.setStyleSheet(f"color: {Config.COLOR_TEXT_DIM}; font-size: 9px; font-weight: bold;")
         lay.addWidget(lbl_mode)
 
-        self.chk_natural_sort = QCheckBox("Natural numeric sort (1, 2 ... 10, 100)")
+        self.chk_natural_sort = QCheckBox(tr("stitcher.natural_numeric_sort_1_2_10"))
         self.chk_natural_sort.setChecked(True)
         self.chk_natural_sort.setToolTip(
-            "Automatically orders files numerically (e.g. 1.jpg, 2.jpg, 10.jpg, 100.jpg)\n"
-            "even if the operating system loaded them out of order."
+            tr("stitcher.automatically_orders_files_numerically_e")
         )
         self.chk_natural_sort.setStyleSheet(f"color: {Config.COLOR_TEXT}; font-size: 10px;")
         self.chk_natural_sort.toggled.connect(self.refresh_file_combos)
@@ -173,9 +172,9 @@ class StitcherPanel(QWidget):
 
         self.mode_combo = QComboBox()
         self.mode_combo.addItems([
-            "Manual Blocks (By Filename / Checked)",
-            "Auto: Pages per Output File",
-            "Auto: Fit to Max File Count"
+            tr("stitcher.manual_blocks_by_filename_checked"),
+            tr("stitcher.auto_pages_per_output_file"),
+            tr("stitcher.auto_fit_to_max_file_count")
         ])
         self.mode_combo.setStyleSheet(f"background: {Config.COLOR_BG}; border: 1px solid #2a2a32; padding: 4px; font-size: 11px;")
         self.mode_combo.currentIndexChanged.connect(self.on_mode_changed)
@@ -194,7 +193,7 @@ class StitcherPanel(QWidget):
         m_lay.setSpacing(4)
 
         row_from = QHBoxLayout()
-        lbl_from = QLabel("From:")
+        lbl_from = QLabel(tr("stitcher.from"))
         lbl_from.setFixedWidth(36)
         lbl_from.setStyleSheet(f"color: {Config.COLOR_TEXT_DIM}; font-size: 10px;")
         self.combo_from = QComboBox()
@@ -203,7 +202,7 @@ class StitcherPanel(QWidget):
         row_from.addWidget(self.combo_from, 1)
 
         row_to = QHBoxLayout()
-        lbl_to = QLabel("To:")
+        lbl_to = QLabel(tr("stitcher.to"))
         lbl_to.setFixedWidth(36)
         lbl_to.setStyleSheet(f"color: {Config.COLOR_TEXT_DIM}; font-size: 10px;")
         self.combo_to = QComboBox()
@@ -215,13 +214,13 @@ class StitcherPanel(QWidget):
         m_lay.addLayout(row_to)
         ctrl_lay.addWidget(self.manual_row)
 
-        self.btn_add_range = QPushButton("+ Add File Range (From ➔ To)")
-        self.btn_add_range.setToolTip("Groups all files between 'From' and 'To' into one stitched block")
+        self.btn_add_range = QPushButton(tr("stitcher.add_file_range_from_to"))
+        self.btn_add_range.setToolTip(tr("stitcher.groups_all_files_between_from_and"))
         self.btn_add_range.clicked.connect(self.add_range_as_block)
         ctrl_lay.addWidget(self.btn_add_range)
 
-        self.btn_add_checked = QPushButton("+ Add Checked Files as Block")
-        self.btn_add_checked.setToolTip("Groups all currently checked files in Project Assets into one stitched block")
+        self.btn_add_checked = QPushButton(tr("stitcher.add_checked_files_as_block"))
+        self.btn_add_checked.setToolTip(tr("stitcher.groups_all_currently_checked_files_in"))
         self.btn_add_checked.clicked.connect(self.add_checked_as_block)
         ctrl_lay.addWidget(self.btn_add_checked)
 
@@ -229,7 +228,7 @@ class StitcherPanel(QWidget):
         self.auto_row = QWidget()
         a_lay = QHBoxLayout(self.auto_row)
         a_lay.setContentsMargins(0, 0, 0, 0)
-        self.lbl_auto_param = QLabel("Pages per File:")
+        self.lbl_auto_param = QLabel(tr("stitcher.pages_per_file"))
         self.lbl_auto_param.setStyleSheet(f"color: {Config.COLOR_TEXT_DIM}; font-size: 10px;")
         self.spin_auto_val = QSpinBox()
         self.spin_auto_val.setRange(2, 9999)
@@ -238,7 +237,7 @@ class StitcherPanel(QWidget):
         a_lay.addWidget(self.spin_auto_val, 1)
         ctrl_lay.addWidget(self.auto_row)
 
-        self.btn_auto_gen = QPushButton("⚡ Auto-Generate Blocks")
+        self.btn_auto_gen = QPushButton(tr("stitcher.auto_generate_blocks"))
         self.btn_auto_gen.setObjectName("ActionBtn")
         self.btn_auto_gen.clicked.connect(self.auto_generate_blocks)
         ctrl_lay.addWidget(self.btn_auto_gen)
@@ -246,7 +245,7 @@ class StitcherPanel(QWidget):
         lay.addWidget(self.ctrl_frame)
 
         # --- QUEUE LIST OF STITCH BLOCKS ---
-        self.lbl_queue = QLabel("2. STITCH QUEUE (0 FILES) — Double-click to rename")
+        self.lbl_queue = QLabel(tr("stitcher.2_stitch_queue_0_files_double"))
         self.lbl_queue.setStyleSheet(f"color: {Config.COLOR_TEXT_DIM}; font-size: 9px; font-weight: bold; margin-top: 4px;")
         lay.addWidget(self.lbl_queue)
 
@@ -257,12 +256,12 @@ class StitcherPanel(QWidget):
         lay.addWidget(self.block_list, 1)
 
         row_q_btns = QHBoxLayout()
-        btn_ren = QPushButton("RENAME")
-        btn_ren.setToolTip("Set custom output filename for the selected block")
+        btn_ren = QPushButton(tr("stitcher.rename"))
+        btn_ren.setToolTip(tr("stitcher.set_custom_output_filename_for_the"))
         btn_ren.clicked.connect(self.rename_selected_block)
-        btn_rem = QPushButton("REMOVE")
+        btn_rem = QPushButton(tr("stitcher.remove"))
         btn_rem.clicked.connect(self.remove_selected_block)
-        btn_clr = QPushButton("CLEAR")
+        btn_clr = QPushButton(tr("stitcher.clear"))
         btn_clr.clicked.connect(self.clear_blocks)
         row_q_btns.addWidget(btn_ren, 1)
         row_q_btns.addWidget(btn_rem, 1)
@@ -270,26 +269,27 @@ class StitcherPanel(QWidget):
         lay.addLayout(row_q_btns)
 
         # --- EXPORT & HEIGHT GUARD SETTINGS ---
-        lbl_exp = QLabel("3. OUTPUT & HEIGHT GUARD")
+        lbl_exp = QLabel(tr("stitcher.3_output_height_guard"))
         lbl_exp.setStyleSheet(f"color: {Config.COLOR_TEXT_DIM}; font-size: 9px; font-weight: bold; margin-top: 4px;")
         lay.addWidget(lbl_exp)
 
-        self.chk_height_guard = QCheckBox("Split if height exceeds limit:")
+        self.chk_height_guard = QCheckBox(tr("stitcher.split_if_height_exceeds_limit"))
         self.chk_height_guard.setStyleSheet(f"color: {Config.COLOR_TEXT}; font-size: 10px;")
         self.chk_height_guard.setChecked(False)
         lay.addWidget(self.chk_height_guard)
 
         row_h = QHBoxLayout()
-        lbl_max_h = QLabel("Max Height:")
+        lbl_max_h = QLabel(tr("stitcher.max_height"))
         lbl_max_h.setStyleSheet(f"color: {Config.COLOR_TEXT_DIM}; font-size: 10px;")
         self.spin_max_h = QSpinBox()
         self.spin_max_h.setRange(512, 4096)
         self.spin_max_h.setSingleStep(512)
         self.spin_max_h.setSuffix(" px")
         self.spin_max_h.setValue(2048)
-        btn_sync_tile = QPushButton("Sync Tile")
-        btn_sync_tile.setToolTip("Sync Max Height with current Max Tile Size (512px - 4096px)")
-        btn_sync_tile.setFixedWidth(68)
+        btn_sync_tile = QPushButton("↻")
+        btn_sync_tile.setAccessibleName(tr("stitcher.sync_tile"))
+        btn_sync_tile.setToolTip(tr("stitcher.sync_max_height_with_current_max"))
+        btn_sync_tile.setFixedWidth(32)
         btn_sync_tile.clicked.connect(self.sync_height_from_tile_slider)
         row_h.addWidget(lbl_max_h)
         row_h.addWidget(self.spin_max_h, 1)
@@ -297,7 +297,7 @@ class StitcherPanel(QWidget):
         lay.addLayout(row_h)
 
         row_fmt = QHBoxLayout()
-        lbl_f = QLabel("Format:")
+        lbl_f = QLabel(tr("stitcher.format"))
         lbl_f.setStyleSheet(f"color: {Config.COLOR_TEXT_DIM}; font-size: 10px;")
         self.fmt_combo = QComboBox()
         self.fmt_combo.addItem(tr("stitcher.png_100_lossless"), "png")
@@ -308,7 +308,7 @@ class StitcherPanel(QWidget):
         lay.addLayout(row_fmt)
 
         # Use '&&' so Qt displays literal '&' instead of an underline shortcut
-        self.btn_execute_stitch = QPushButton("EXECUTE STITCH && EXPORT")
+        self.btn_execute_stitch = QPushButton(tr("stitcher.execute_stitch_export"))
         self.btn_execute_stitch.setObjectName("PrimaryBtn")
         self.btn_execute_stitch.setFixedHeight(42)
         self.btn_execute_stitch.clicked.connect(self.execute_stitch_export)
@@ -335,11 +335,11 @@ class StitcherPanel(QWidget):
         self.btn_auto_gen.setVisible(not is_manual)
 
         if idx == 1:
-            self.lbl_auto_param.setText("Pages per File:")
+            self.lbl_auto_param.setText(tr("stitcher.pages_per_file"))
             self.spin_auto_val.setRange(2, 500)
             self.spin_auto_val.setValue(5)
         elif idx == 2:
-            self.lbl_auto_param.setText("Max Output Files:")
+            self.lbl_auto_param.setText(tr("stitcher.max_output_files"))
             self.spin_auto_val.setRange(1, 5000)
             self.spin_auto_val.setValue(100)
 
@@ -382,18 +382,18 @@ class StitcherPanel(QWidget):
     def _refresh_queue_ui(self):
         self.block_list.clear()
         total_outputs = len(self.stitch_blocks)
-        self.lbl_queue.setText(f"2. STITCH QUEUE ({total_outputs} FILES) — Double-click to rename")
+        self.lbl_queue.setText(tr("stitcher.2_stitch_queue_total_outputs_files", total_outputs=total_outputs))
 
         for block in self.stitch_blocks:
             out_name = block["name"]
             paths = block["paths"]
             names = [os.path.basename(p) for p in paths]
             if len(names) == 1:
-                desc = f"{names[0]} (1 page)"
+                desc = tr("stitcher.one_page_desc", name=names[0])
             else:
-                desc = f"{names[0]} .. {names[-1]} ({len(names)} pages)"
+                desc = tr("stitcher.page_range_desc", first=names[0], last=names[-1], count=len(names))
             item = QListWidgetItem(f"{out_name}  ⟵  [{desc}]")
-            item.setToolTip("Double-click to set a custom output filename for this stitched block")
+            item.setToolTip(tr("stitcher.double_click_to_set_a_custom"))
             self.block_list.addItem(item)
 
     def add_checked_as_block(self):
@@ -406,8 +406,8 @@ class StitcherPanel(QWidget):
 
         if not checked_paths:
             QMessageBox.information(
-                self, "No Checked Pages",
-                "Check the pages you want to combine in the left Project Assets list first."
+                self, tr("stitcher.no_checked_pages"),
+                tr("stitcher.check_the_pages_you_want_to")
             )
             return
 
@@ -427,7 +427,7 @@ class StitcherPanel(QWidget):
     def add_range_as_block(self):
         all_paths = self._get_ordered_project_paths()
         if not all_paths:
-            QMessageBox.information(self, "Empty Project", "Import a folder of images first.")
+            QMessageBox.information(self, tr("stitcher.empty_project"), tr("stitcher.import_a_folder_of_images_first"))
             return
 
         if self.combo_from.count() != len(all_paths):
@@ -438,8 +438,8 @@ class StitcherPanel(QWidget):
 
         if start_idx < 0 or end_idx < 0 or start_idx > end_idx:
             QMessageBox.warning(
-                self, "Invalid File Range",
-                "Please select a 'From' file that comes before or equals the 'To' file."
+                self, tr("stitcher.invalid_file_range"),
+                tr("stitcher.please_select_a_from_file_that")
             )
             return
 
@@ -461,7 +461,7 @@ class StitcherPanel(QWidget):
         all_paths = self._get_ordered_project_paths()
         total = len(all_paths)
         if total == 0:
-            QMessageBox.information(self, "Empty Project", "Import a folder of images first.")
+            QMessageBox.information(self, tr("stitcher.empty_project"), tr("stitcher.import_a_folder_of_images_first"))
             return
 
         self.stitch_blocks.clear()
@@ -501,8 +501,8 @@ class StitcherPanel(QWidget):
         curr_name = self.stitch_blocks[row]["name"]
         new_name, ok = QInputDialog.getText(
             self,
-            "Rename Stitched Output File",
-            "Enter custom output filename (without extension):",
+            tr("stitcher.rename_stitched_output_file"),
+            tr("stitcher.enter_custom_output_filename_without_ext"),
             QLineEdit.Normal,
             curr_name
         )
@@ -551,8 +551,8 @@ class StitcherPanel(QWidget):
         if not self.stitch_blocks:
             QMessageBox.information(
                 self,
-                "Queue Empty",
-                "Add at least one block to the Stitch Queue (or click 'Auto-Generate Blocks') before exporting."
+                tr("stitcher.queue_empty"),
+                tr("stitcher.add_at_least_one_block_to")
             )
             return
 
@@ -570,15 +570,15 @@ class StitcherPanel(QWidget):
                 "texts": self.mw.canvas.get_texts_data()
             }
 
-        out_dir = QFileDialog.getExistingDirectory(self, "Select Output Folder for Stitched Images")
+        out_dir = QFileDialog.getExistingDirectory(self, tr("stitcher.select_output_folder_for_stitched_images"))
         if not out_dir:
             return
 
         fmt = self.fmt_combo.currentData()
         max_h = self.spin_max_h.value() if self.chk_height_guard.isChecked() else 0
 
-        progress = QProgressDialog("Stitching blocks losslessly...", "Cancel", 0, len(self.stitch_blocks), self)
-        progress.setWindowTitle("Lossless Stitcher")
+        progress = QProgressDialog(tr("stitcher.stitching_blocks_losslessly"), tr("common.cancel"), 0, len(self.stitch_blocks), self)
+        progress.setWindowTitle(tr("stitcher.lossless_stitcher"))
         progress.setWindowModality(Qt.WindowModal)
         progress.setMinimumDuration(0)
 
@@ -622,9 +622,9 @@ class StitcherPanel(QWidget):
             logger.info(f"[STITCHER] Successfully exported {saved_count} stitched files to {out_dir}")
             QMessageBox.information(
                 self,
-                "Stitch Complete",
-                f"Successfully exported {saved_count} lossless stitched files to:\n{out_dir}"
+                tr("stitcher.stitch_complete"),
+                tr("stitcher.successfully_exported_saved_count_lossle", saved_count=saved_count, out_dir=out_dir)
             )
         except Exception as e:
             logger.error(f"[STITCHER] Error during stitch export: {e}")
-            QMessageBox.critical(self, "Stitcher Error", f"An error occurred while stitching:\n{e}")
+            QMessageBox.critical(self, tr("stitcher.stitcher_error"), tr("stitcher.an_error_occurred_while_stitching_e", e=e))

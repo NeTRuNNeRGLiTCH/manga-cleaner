@@ -21,15 +21,17 @@ class BatchEngine(QObject):
 
     def initialize_batch(self, file_paths, export_format):
         self.files = file_paths
-        self.export_format = export_format
+        self.export_format = (export_format or "").strip().lower()
         self.current_index = 0
-        
-        batch_id = Config.get_next_batch_id()
-        self.output_dir = os.path.join(Paths.PROCESSED, batch_id)
-        if not os.path.exists(self.output_dir):
-            os.makedirs(self.output_dir)
+
+        if self.export_format and self.export_format != "none":
+            batch_id = Config.get_next_batch_id()
+            self.output_dir = os.path.join(Paths.PROCESSED, batch_id)
+            os.makedirs(self.output_dir, exist_ok=True)
+        else:
+            self.output_dir = ""
             
-        logger.info(f"Batch Engine Ready: {self.output_dir}")
+        logger.info(f"Batch Engine Ready: {self.output_dir or 'memory only (no export)'}")
         return self.output_dir
 
     def get_next(self):
@@ -40,7 +42,7 @@ class BatchEngine(QObject):
         return None
 
     def save_current(self, cv_img):
-        if self.export_format.lower() == "none":
+        if not self.export_format or self.export_format == "none":
             logger.info("[+] Page processed and kept in session memory.")
             self.current_index += 1
             return self.current_index >= len(self.files)

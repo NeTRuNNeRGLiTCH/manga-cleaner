@@ -166,7 +166,7 @@ Image 2 [002.jpg]
 
 ### Python version
 
-- **v3.4.0 (planned):** Community-contributed multi-language support through translation files.
+- **v3.4.0:** Multi-language UI foundation with English fallback, a language selector, and community-maintained locale catalogs. Current catalogs include English, Spanish, Brazilian Portuguese, French, and Egyptian Arabic; some help content may still fall back to English.
 - **v3.5.0 (under investigation):** Potential watermark-removal support using an AI model, subject to implementation feasibility and attribution to the model developer.
 
 The Python roadmap may change if development of the C++ version progresses faster than expected.
@@ -184,7 +184,7 @@ Running directly from the repository is recommended for development and Linux NV
 ### 1. Clone the Repository
 
 ```bash
-git clone [https://github.com/NeTRuNNeRGLiTCH/manga-cleaner.git](https://github.com/NeTRuNNeRGLiTCH/manga-cleaner.git)
+git clone https://github.com/NeTRuNNeRGLiTCH/manga-cleaner.git
 cd manga-cleaner
 
 ```
@@ -233,6 +233,25 @@ python main.py
 ## 👥 Contributing
 
 Interested in contributing code, models, or optimizations? Please review **[CONTRIBUTING.md](CONTRIBUTING.md)** for development guidelines, coding standards, and compilation instructions (PyInstaller / Docker).
+
+### Project Directory Structure
+
+```text
+manga-cleaner/
+├── assets/                 # Application icons and bundled UI assets
+├── locales/                # Language catalogs and language index
+├── src/
+│   ├── backend/            # Image processing, AI, batch, and export logic
+│   ├── frontend/           # PySide6 windows, widgets, canvas, and styles
+│   └── utils/              # Configuration, localization, paths, and logging
+├── tests/                  # Automated tests
+├── tools/                  # Locale validation and migration helpers
+├── main.py                 # Application entry point
+├── CONTRIBUTING.md         # Development and contribution guidelines
+└── TRANSLATION.md          # Localization and catalog workflow
+```
+
+Runtime data, downloaded models, build outputs, and processed images are created or installed separately and are not part of the source tree shown above. See [Running from Source](#-running-from-source) and [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 

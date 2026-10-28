@@ -15,7 +15,7 @@ from PySide6.QtCore import Qt, QTimer, QThread
 from enum import Enum, auto
 from src.frontend.widgets import (FileListWidget, ToolGroup, LabeledSlider, 
                                 HardwareMonitor, CategorySelector, ColorSwatchButton)
-from src.utils.i18n import tr
+from src.utils.i18n import tr, tr_label
 from src.frontend.canvas import MangaCanvas, MangaTextItem
 from src.frontend.help_system import HelpSystem
 from src.utils.system_info import SystemMonitor
@@ -23,6 +23,7 @@ from src.utils.history import HistoryManager
 from src.utils.config import Config
 from src.utils.paths import Paths
 from src.utils.logger import logger
+from src.utils import i18n
 from src.backend.photoshop import PhotoshopBridge
 from src.backend.photopea import PhotopeaBridge
 from src.backend.batch_engine import BatchEngine
@@ -50,7 +51,7 @@ class PageState(Enum):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle(f"{Config.APP_NAME} v{Config.VERSION}")
+        self.setWindowTitle(tr("main.app_name_v_version", app_name=Config.APP_NAME, version=Config.VERSION))
         self.resize(1500, 900)
 
         self.monitor = SystemMonitor()
@@ -147,46 +148,67 @@ class MainWindow(QMainWindow):
         title = QLabel(f"{Config.APP_NAME.upper()} {Config.VERSION}")
         title.setStyleSheet(f"color: {Config.COLOR_ACCENT}; font-weight: bold; font-size: 18px;")
 
-        btn_reset = QPushButton("RESET")
+        btn_reset = QPushButton(tr("main.reset"))
         btn_reset.setObjectName("ActionBtn")
         btn_reset.setToolTip(
-            "Close the current project in memory and prepare the studio for a new one"
+            tr("main.close_the_current_project_in_memory")
         )
-        btn_reset.setFixedSize(65, 30)
         btn_reset.clicked.connect(lambda: ProjectResetController.reset(self))
 
         self.hw_mon = HardwareMonitor()
         
-        btn_help = QPushButton("HELP")
-        btn_help.setFixedSize(50, 30)
+        btn_help = QPushButton(tr("main.help"))
         btn_help.clicked.connect(lambda: HelpSystem.show_guide(self))
         
-        btn_open = QPushButton("IMPORT FOLDER")
+        btn_open = QPushButton(tr("main.import_folder"))
         btn_open.clicked.connect(self.on_open_folder)
         
-        self.btn_editor = QPushButton("SEND TO EDITOR ▼")
+        self.btn_editor = QPushButton(tr("main.send_to_editor"))
         ed_menu = QMenu(self)
         
-        ps_action = ed_menu.addAction("Adobe Photoshop")
+        ps_action = ed_menu.addAction(tr("main.adobe_photoshop"))
         ps_action.triggered.connect(lambda: self.on_editor_bridge("photoshop"))
         if os.name != 'nt':
             ps_action.setEnabled(False)
-            ps_action.setText("Adobe Photoshop")
+            ps_action.setText(tr("main.adobe_photoshop"))
             
-        ed_menu.addAction("Photopea (Web)").triggered.connect(lambda: self.on_editor_bridge("photopea"))
+        ed_menu.addAction(tr("main.photopea_web")).triggered.connect(lambda: self.on_editor_bridge("photopea"))
         self.btn_editor.setMenu(ed_menu)
         
-        self.btn_export = QPushButton("EXPORT ▼")
+        self.btn_export = QPushButton(tr("main.export"))
         self.btn_export.setObjectName("PrimaryBtn")
         exp_menu = QMenu(self)
-        exp_menu.addAction("Export as JPG").triggered.connect(lambda: self.on_export("jpg"))
-        exp_menu.addAction("Export as PNG").triggered.connect(lambda: self.on_export("png"))
+        exp_menu.addAction(tr("main.export_as_jpg")).triggered.connect(lambda: self.on_export("jpg"))
+        exp_menu.addAction(tr("main.export_as_png")).triggered.connect(lambda: self.on_export("png"))
         self.btn_export.setMenu(exp_menu)
+
+        self.btn_language = QPushButton(f"🌐 {i18n.current_language().upper()}")
+        self.btn_language.setObjectName("ActionBtn")
+        self.btn_language.setToolTip(tr("main.select_language"))
+        language_menu = QMenu(self)
+        automatic_label = tr("main.automatic_system_language")
+        automatic_action = language_menu.addAction(automatic_label)
+        automatic_action.triggered.connect(
+            lambda _checked=False: self.on_language_selected("auto", automatic_label)
+        )
+        language_menu.addSeparator()
+        for language_code, display_name in i18n.available_languages():
+            language_action = language_menu.addAction(display_name)
+            language_action.triggered.connect(
+                lambda _checked=False, code=language_code, name=display_name:
+                    self.on_language_selected(code, name)
+            )
+        self.btn_language.setMenu(language_menu)
+
+        # Let translated labels determine button width through each button's sizeHint.
+        for nav_button in (self.btn_language, btn_help, btn_open, btn_reset, self.btn_editor, self.btn_export):
+            nav_button.setMinimumHeight(30)
 
         nav_lay.addWidget(title)
         nav_lay.addStretch()
         nav_lay.addWidget(self.hw_mon)
         nav_lay.addSpacing(10)
+        nav_lay.addWidget(self.btn_language)
         nav_lay.addWidget(btn_help)
         nav_lay.addWidget(btn_open)
         nav_lay.addWidget(btn_reset)
@@ -206,7 +228,7 @@ class MainWindow(QMainWindow):
         header_lay = QHBoxLayout()
         self.chk_all = QCheckBox()
         self.chk_all.toggled.connect(self.toggle_all_files)
-        lbl_assets = QLabel("PROJECT ASSETS")
+        lbl_assets = QLabel(tr("main.project_assets"))
         lbl_assets.setStyleSheet("color: #888888; font-weight: bold;")
         header_lay.addWidget(self.chk_all)
         header_lay.addWidget(lbl_assets)
@@ -214,7 +236,7 @@ class MainWindow(QMainWindow):
 
         self.file_list = FileListWidget()
         self.file_list.itemClicked.connect(self.on_file_clicked)
-        self.btn_batch = QPushButton("RUN BATCH PROCESS")
+        self.btn_batch = QPushButton(tr("main.run_batch_process"))
         self.btn_batch.setObjectName("ActionBtn")
         self.btn_batch.clicked.connect(self.on_start_batch)
         
@@ -243,11 +265,11 @@ class MainWindow(QMainWindow):
         rp_lay = QVBoxLayout(self.rp)
         rp_lay.setSpacing(6)
         
-        self.cat_lbl = QLabel("CATEGORY: CLEANER")
+        self.cat_lbl = QLabel(tr("main.category_cleaner"))
         self.cat_lbl.setStyleSheet(f"color: {Config.COLOR_TEXT}; font-weight: bold; font-size: 11px;")
         rp_lay.addWidget(self.cat_lbl)
 
-        self.mode_lbl = QLabel("MODE: PAINTING")
+        self.mode_lbl = QLabel(tr("main.mode_painting"))
         self.mode_lbl.setStyleSheet(f"color: {Config.COLOR_ACCENT}; font-weight: bold; font-size: 10px;")
         rp_lay.addWidget(self.mode_lbl)
 
@@ -279,7 +301,7 @@ class MainWindow(QMainWindow):
         self.tools.buttons["POLY"].clicked.connect(lambda: self.set_tool("POLY"))
         self.tools.buttons["BUCKET"].clicked.connect(lambda: self.set_tool("BUCKET"))
         self.tools.buttons["CLEAR"].clicked.connect(self.canvas.clear_mask)
-        self.tools.buttons["MANUAL"].setToolTip("Manual Cleaner Brush [D] - Paint directly on page (Ctrl+Z to Undo)")
+        self.tools.buttons["MANUAL"].setToolTip(tr("main.manual_cleaner_brush_d_paint_directly"))
         self.tools.buttons["MANUAL"].clicked.connect(lambda: self.set_tool("PAINT"))
 
         # Contextual Manual Cleaner Sub-Bar (Only visible when MANUAL / PICKER is active!)
@@ -288,19 +310,18 @@ class MainWindow(QMainWindow):
         mc_lay.setContentsMargins(5, 2, 5, 2)
         mc_lay.setSpacing(6)
 
-        self.btn_picker = QPushButton("PICKER [I]")
+        self.btn_picker = QPushButton(tr("main.picker_i"))
         self.btn_picker.setCheckable(True)
-        self.btn_picker.setToolTip("Eyedropper Color Picker [I] - Click on page to sample color")
+        self.btn_picker.setToolTip(tr("main.eyedropper_color_picker_i_click_on"))
         self.btn_picker.clicked.connect(lambda: self.set_tool("PICKER"))
 
         self.swatch_manual_clean = ColorSwatchButton(
-            QColor(255, 255, 255), width=42, height=24, tooltip="Click to choose Manual Cleaner Color"
+            QColor(255, 255, 255), width=42, height=24, tooltip=tr("main.click_to_choose_manual_cleaner_color")
         )
         self.swatch_manual_clean.clicked.connect(self.choose_manual_clean_color)
 
-        btn_white_reset = QPushButton("White")
-        btn_white_reset.setFixedWidth(50)
-        btn_white_reset.setToolTip("Reset Manual Paint Color to Pure White")
+        btn_white_reset = QPushButton(tr("main.white"))
+        btn_white_reset.setToolTip(tr("main.reset_manual_paint_color_to_pure"))
         btn_white_reset.clicked.connect(lambda: self.on_clean_color_picked(QColor(255, 255, 255)))
 
         mc_lay.addWidget(self.btn_picker, 1)
@@ -308,26 +329,26 @@ class MainWindow(QMainWindow):
         mc_lay.addWidget(btn_white_reset)
         self.manual_col_frame.setVisible(False)
 
-        self.b_slider = LabeledSlider("BRUSH SIZE", 40, 1, 300, self.canvas.set_brush_size)
-        self.o_slider = LabeledSlider("MASK OPACITY", 60, 0, 100, self.canvas.set_mask_opacity, suffix="%")
-        self.t_slider = LabeledSlider("MAX TILE SIZE", 2048, 512, 4096, is_tile=True)
+        self.b_slider = LabeledSlider(tr("main.brush_size"), 40, 1, 300, self.canvas.set_brush_size)
+        self.o_slider = LabeledSlider(tr("main.mask_opacity"), 60, 0, 100, self.canvas.set_mask_opacity, suffix="%")
+        self.t_slider = LabeledSlider(tr("main.max_tile_size"), 2048, 512, 4096, is_tile=True)
         
         self.canvas.brush_size_changed.connect(self.b_slider.slider.setValue)
         
-        btn_scan = QPushButton("OCR SCAN [O]")
+        btn_scan = QPushButton(tr("main.ocr_scan_o"))
         btn_scan.setObjectName("ActionBtn")
         btn_scan.clicked.connect(self.on_ocr_scan)
 
-        btn_trans = QPushButton("TRANSPARENCY SCAN [T]")
+        btn_trans = QPushButton(tr("main.transparency_scan_t"))
         btn_trans.setObjectName("ActionBtn")
         btn_trans.clicked.connect(self.on_transparency_scan)
         
-        self.btn_clean = QPushButton("EXECUTE CLEAN [C]")
+        self.btn_clean = QPushButton(tr("main.execute_clean_c"))
         self.btn_clean.setObjectName("PrimaryBtn")
         self.btn_clean.setFixedHeight(45)
         self.btn_clean.clicked.connect(self.on_lama_clean)
         
-        self.queue_lbl = QLabel("Processing / Queued: 0")
+        self.queue_lbl = QLabel(tr("main.processing_queued_0"))
         self.queue_lbl.setStyleSheet(f"color: {Config.COLOR_TEXT_DIM}; font-size: 10px;")
         self.queue_lbl.setAlignment(Qt.AlignCenter)
 
@@ -357,18 +378,18 @@ class MainWindow(QMainWindow):
         tp_lay.addWidget(self.type_tools)
 
         # --- FONT FILTER, FAVORITES & ALIASES ---
-        tp_title = QLabel("FONT MANAGER & FILTER")
+        tp_title = QLabel(tr("main.font_manager_filter"))
         tp_title.setStyleSheet(f"color: {Config.COLOR_TEXT_DIM}; font-size: 9px; font-weight: bold;")
         tp_lay.addWidget(tp_title)
 
         row_filter = QHBoxLayout()
         self.font_search = QLineEdit()
-        self.font_search.setPlaceholderText("Search font or alias...")
+        self.font_search.setPlaceholderText(tr("main.search_font_or_alias"))
         self.font_search.setStyleSheet(f"background: {Config.COLOR_BG}; border: 1px solid #2a2a32; padding: 3px; font-size: 11px;")
         self.font_search.textChanged.connect(self.populate_font_combo)
 
-        self.chk_fav_only = QCheckBox("★ Only")
-        self.chk_fav_only.setToolTip("Show Only Favorite Fonts (Saved across sessions)")
+        self.chk_fav_only = QCheckBox(tr("main.only"))
+        self.chk_fav_only.setToolTip(tr("main.show_only_favorite_fonts_saved_across"))
         self.chk_fav_only.setStyleSheet(f"color: {Config.COLOR_ACCENT}; font-size: 10px; font-weight: bold;")
         self.chk_fav_only.setChecked(self.fav_only_pref)
         self.chk_fav_only.toggled.connect(self.on_fav_only_toggled)
@@ -384,12 +405,12 @@ class MainWindow(QMainWindow):
 
         self.btn_fav_font = QPushButton("☆")
         self.btn_fav_font.setFixedWidth(28)
-        self.btn_fav_font.setToolTip("Toggle Favorite for Current Font")
+        self.btn_fav_font.setToolTip(tr("main.toggle_favorite_for_current_font"))
         self.btn_fav_font.clicked.connect(self.toggle_current_font_favorite)
 
         self.btn_alias_font = QPushButton("✎")
         self.btn_alias_font.setFixedWidth(28)
-        self.btn_alias_font.setToolTip("Set Custom Alias/Use-Case Name for Current Font")
+        self.btn_alias_font.setToolTip(tr("main.set_custom_alias_use_case_name"))
         self.btn_alias_font.clicked.connect(self.rename_current_font_alias)
 
         row_font_sel.addWidget(self.font_combo, 1)
@@ -399,25 +420,25 @@ class MainWindow(QMainWindow):
 
         # Size, Bold, Italic, Align
         row_style = QHBoxLayout()
-        lbl_sz = QLabel("Size:")
+        lbl_sz = QLabel(tr("main.size"))
         lbl_sz.setStyleSheet(f"color: {Config.COLOR_TEXT_DIM}; font-size: 10px;")
         self.font_size_spin = QSpinBox()
         self.font_size_spin.setRange(6, 300)
         self.font_size_spin.setValue(32)
         self.font_size_spin.valueChanged.connect(self.on_text_style_ui_changed)
 
-        self.btn_bold = QPushButton("B")
+        self.btn_bold = QPushButton(tr("main.b"))
         self.btn_bold.setCheckable(True)
         self.btn_bold.setFixedWidth(28)
         self.btn_bold.clicked.connect(self.on_text_style_ui_changed)
 
-        self.btn_italic = QPushButton("I")
+        self.btn_italic = QPushButton(tr("main.i"))
         self.btn_italic.setCheckable(True)
         self.btn_italic.setFixedWidth(28)
         self.btn_italic.clicked.connect(self.on_text_style_ui_changed)
 
         self.btn_center = QPushButton("≡")
-        self.btn_center.setToolTip("Center Align Text")
+        self.btn_center.setToolTip(tr("main.center_align_text"))
         self.btn_center.setCheckable(True)
         self.btn_center.setChecked(True)
         self.btn_center.setFixedWidth(28)
@@ -432,7 +453,7 @@ class MainWindow(QMainWindow):
 
         # Rotation & Fit Box Row
         row_rot = QHBoxLayout()
-        lbl_rot = QLabel("Angle:")
+        lbl_rot = QLabel(tr("main.angle"))
         lbl_rot.setStyleSheet(f"color: {Config.COLOR_TEXT_DIM}; font-size: 10px;")
         self.rot_spin = QSpinBox()
         self.rot_spin.setRange(-180, 180)
@@ -441,13 +462,12 @@ class MainWindow(QMainWindow):
         self.rot_spin.valueChanged.connect(self.on_text_rotation_ui_changed)
 
         self.btn_reset_rot = QPushButton("0°")
-        self.btn_reset_rot.setToolTip("Reset Rotation to 0°")
+        self.btn_reset_rot.setToolTip(tr("main.reset_rotation_to_0"))
         self.btn_reset_rot.setFixedWidth(34)
         self.btn_reset_rot.clicked.connect(lambda: self.rot_spin.setValue(0))
 
-        self.btn_auto_width = QPushButton("Fit Box")
-        self.btn_auto_width.setToolTip("Reset Box Width to Auto-Fit")
-        self.btn_auto_width.setFixedWidth(64)
+        self.btn_auto_width = QPushButton(tr("main.fit_box"))
+        self.btn_auto_width.setToolTip(tr("main.reset_box_width_to_auto_fit"))
         self.btn_auto_width.clicked.connect(self.on_reset_box_width)
 
         row_rot.addWidget(lbl_rot)
@@ -457,24 +477,24 @@ class MainWindow(QMainWindow):
         tp_lay.addLayout(row_rot)
 
         # --- PHOTOSHOP-STYLE COLOR SWATCHES & SINGLE RENDER MODE BUTTON ---
-        lbl_col = QLabel("COLOR SWATCHES & STROKE MODE")
+        lbl_col = QLabel(tr("main.color_swatches_stroke_mode"))
         lbl_col.setStyleSheet(f"color: {Config.COLOR_TEXT_DIM}; font-size: 9px; font-weight: bold; margin-top: 4px;")
         tp_lay.addWidget(lbl_col)
 
         row_colors = QHBoxLayout()
-        lbl_fill_tag = QLabel("Fill:")
+        lbl_fill_tag = QLabel(tr("main.fill"))
         lbl_fill_tag.setStyleSheet(f"color: {Config.COLOR_TEXT_DIM}; font-size: 10px;")
-        self.swatch_text_color = ColorSwatchButton(QColor(0, 0, 0), width=42, height=24, tooltip="Click to pick Fill Color")
+        self.swatch_text_color = ColorSwatchButton(QColor(0, 0, 0), width=42, height=24, tooltip=tr("main.click_to_pick_fill_color"))
         self.swatch_text_color.clicked.connect(self.choose_text_color)
 
         self.btn_swap_colors = QPushButton("⇄")
-        self.btn_swap_colors.setToolTip("Swap Fill and Stroke Colors")
+        self.btn_swap_colors.setToolTip(tr("main.swap_fill_and_stroke_colors"))
         self.btn_swap_colors.setFixedWidth(30)
         self.btn_swap_colors.clicked.connect(self.swap_text_and_stroke_colors)
 
-        lbl_str_tag = QLabel("Stroke:")
+        lbl_str_tag = QLabel(tr("main.stroke"))
         lbl_str_tag.setStyleSheet(f"color: {Config.COLOR_TEXT_DIM}; font-size: 10px;")
-        self.swatch_stroke_color = ColorSwatchButton(QColor(255, 255, 255), width=42, height=24, tooltip="Click to pick Outer Stroke Color")
+        self.swatch_stroke_color = ColorSwatchButton(QColor(255, 255, 255), width=42, height=24, tooltip=tr("main.click_to_pick_outer_stroke_color"))
         self.swatch_stroke_color.clicked.connect(self.choose_stroke_color)
 
         row_colors.addWidget(lbl_fill_tag)
@@ -487,16 +507,16 @@ class MainWindow(QMainWindow):
         tp_lay.addLayout(row_colors)
 
         # Single Toggle Button for Normal vs Stroke Mode
-        self.btn_stroke_mode = QPushButton("Mode: Normal (No Stroke)")
+        self.btn_stroke_mode = QPushButton(tr("main.mode_normal_no_stroke"))
         self.btn_stroke_mode.setCheckable(True)
-        self.btn_stroke_mode.setToolTip("Toggle between Normal Text and Outer Stroke Mode")
+        self.btn_stroke_mode.setToolTip(tr("main.toggle_between_normal_text_and_outer"))
         self.btn_stroke_mode.toggled.connect(self.on_stroke_mode_toggled)
         tp_lay.addWidget(self.btn_stroke_mode)
 
         self.stroke_settings_frame = QFrame()
         row_stroke = QHBoxLayout(self.stroke_settings_frame)
         row_stroke.setContentsMargins(0, 0, 0, 0)
-        lbl_st = QLabel("Size:")
+        lbl_st = QLabel(tr("main.size"))
         lbl_st.setStyleSheet(f"color: {Config.COLOR_TEXT_DIM}; font-size: 10px;")
         self.stroke_spin = QSpinBox()
         self.stroke_spin.setRange(1, 30)
@@ -504,7 +524,7 @@ class MainWindow(QMainWindow):
         self.stroke_spin.setValue(3)
         self.stroke_spin.valueChanged.connect(self.on_text_style_ui_changed)
 
-        lbl_op = QLabel("Opacity:")
+        lbl_op = QLabel(tr("main.opacity"))
         lbl_op.setStyleSheet(f"color: {Config.COLOR_TEXT_DIM}; font-size: 10px;")
         self.stroke_op_spin = QSpinBox()
         self.stroke_op_spin.setRange(10, 100)
@@ -521,11 +541,11 @@ class MainWindow(QMainWindow):
 
         # Page Text Detector List & Preview Outlines Toggle
         row_layers_hdr = QHBoxLayout()
-        self.lbl_text_layers = QLabel("PAGE TEXT LAYERS (0 Placed | 0 Queued)")
+        self.lbl_text_layers = QLabel(tr("main.page_text_layers_0_placed_0"))
         self.lbl_text_layers.setStyleSheet(f"color: {Config.COLOR_TEXT_DIM}; font-size: 9px; font-weight: bold; margin-top: 4px;")
 
-        self.chk_show_guides = QCheckBox("Show Outlines")
-        self.chk_show_guides.setToolTip("Toggle bounding boxes visibility for unselected text (Preview mode)")
+        self.chk_show_guides = QCheckBox(tr("main.show_outlines"))
+        self.chk_show_guides.setToolTip(tr("main.toggle_bounding_boxes_visibility_for_uns"))
         self.chk_show_guides.setStyleSheet(f"color: {Config.COLOR_ACCENT}; font-size: 10px; font-weight: bold;")
         self.chk_show_guides.setChecked(True)
         self.chk_show_guides.toggled.connect(self.canvas.set_show_text_guides)
@@ -542,9 +562,9 @@ class MainWindow(QMainWindow):
         tp_lay.addWidget(self.text_layer_list, 1)
 
         row_del_btns = QHBoxLayout()
-        self.btn_del_text = QPushButton("DELETE SELECTED")
+        self.btn_del_text = QPushButton(tr("main.delete_selected"))
         self.btn_del_text.clicked.connect(self.canvas.delete_selected_texts)
-        self.btn_clear_texts = QPushButton("CLEAR ALL")
+        self.btn_clear_texts = QPushButton(tr("main.clear_all"))
         self.btn_clear_texts.clicked.connect(self.on_clear_all_page_texts)
         row_del_btns.addWidget(self.btn_del_text, 1)
         row_del_btns.addWidget(self.btn_clear_texts, 1)
@@ -675,8 +695,8 @@ class MainWindow(QMainWindow):
         current_alias = self.font_aliases.get(fam, "")
         new_alias, ok = QInputDialog.getText(
             self,
-            "Rename / Alias Font",
-            f"Enter custom alias for '{fam}'\n(Leave empty to restore default name):",
+            tr("main.rename_alias_font"),
+            tr("main.enter_custom_alias_for_fam_leave", fam=fam),
             QLineEdit.Normal,
             current_alias
         )
@@ -695,7 +715,7 @@ class MainWindow(QMainWindow):
 
     def set_category(self, category: str):
         self.current_category = category
-        self.cat_lbl.setText(f"CATEGORY: {category}")
+        self.cat_lbl.setText(tr("main.category_category", category=tr_label(category)))
 
         for name, btn in self.cat_selector.buttons.items():
             btn.blockSignals(True)
@@ -766,7 +786,7 @@ class MainWindow(QMainWindow):
                 self.tools.buttons["MOVE"].setChecked(True)
             elif self.current_category == "TYPESETTER":
                 self.type_tools.buttons["MOVE"].setChecked(True)
-            self.mode_lbl.setText("MODE: MOVING")
+            self.mode_lbl.setText(tr("main.mode_moving"))
             self.mode_lbl.setStyleSheet("color: #888888; font-weight: bold;")
             
         else:
@@ -799,22 +819,22 @@ class MainWindow(QMainWindow):
                 self.tools.buttons[tool].setChecked(True)
             
             if tool == "ERASER":
-                self.mode_lbl.setText("MODE: ERASING MASK")
+                self.mode_lbl.setText(tr("main.mode_erasing_mask"))
                 self.mode_lbl.setStyleSheet("color: #00d4ff; font-weight: bold;")
             elif tool == "BUCKET":
-                self.mode_lbl.setText("MODE: FILLING MASK")
+                self.mode_lbl.setText(tr("main.mode_filling_mask"))
                 self.mode_lbl.setStyleSheet(f"color: {Config.COLOR_ACCENT}; font-weight: bold;")
             elif tool == "PAINT":
-                self.mode_lbl.setText("MODE: MANUAL CLEAN BRUSH")
+                self.mode_lbl.setText(tr("main.mode_manual_clean_brush"))
                 self.mode_lbl.setStyleSheet("color: #00ff8c; font-weight: bold;")
             elif tool == "PICKER":
-                self.mode_lbl.setText("MODE: COLOR PICKER")
+                self.mode_lbl.setText(tr("main.mode_color_picker"))
                 self.mode_lbl.setStyleSheet("color: #00ff8c; font-weight: bold;")
             elif tool == "TEXT":
-                self.mode_lbl.setText("MODE: TYPESETTING")
+                self.mode_lbl.setText(tr("main.mode_typesetting"))
                 self.mode_lbl.setStyleSheet(f"color: {Config.COLOR_ACCENT}; font-weight: bold;")
             else:
-                self.mode_lbl.setText("MODE: PAINTING MASK")
+                self.mode_lbl.setText(tr("main.mode_painting_mask"))
                 self.mode_lbl.setStyleSheet(f"color: {Config.COLOR_ACCENT}; font-weight: bold;")
 
     # --- MANUAL CLEANER HANDLERS ---
@@ -830,7 +850,7 @@ class MainWindow(QMainWindow):
             self.set_tool("PAINT", switch_category=False)
 
     def choose_manual_clean_color(self):
-        c = QColorDialog.getColor(self.canvas.manual_clean_color, self, "Select Manual Cleaner Brush Color")
+        c = QColorDialog.getColor(self.canvas.manual_clean_color, self, tr("main.select_manual_cleaner_brush_color"))
         if c.isValid():
             self.on_clean_color_picked(c)
 
@@ -844,7 +864,7 @@ class MainWindow(QMainWindow):
         self.swatch_stroke_color.set_color(self.canvas.default_stroke_color)
 
     def on_stroke_mode_toggled(self, enabled: bool):
-        self.btn_stroke_mode.setText("Mode: Stroke (Outside)" if enabled else "Mode: Normal (No Stroke)")
+        self.btn_stroke_mode.setText(tr("main.mode_stroke_outside") if enabled else tr("main.mode_normal_no_stroke"))
         self.stroke_settings_frame.setVisible(enabled)
         self.on_text_style_ui_changed()
 
@@ -853,7 +873,7 @@ class MainWindow(QMainWindow):
         self.text_layer_list.clear()
         placed_count = len(self.canvas.text_items)
         pending_count = len(self.canvas.pending_texts)
-        self.lbl_text_layers.setText(f"PAGE TEXT LAYERS ({placed_count} Placed | {pending_count} Queued)")
+        self.lbl_text_layers.setText(tr("main.page_text_layers_placed_count_placed", placed_count=placed_count, pending_count=pending_count))
 
         # Keep single source of truth synced with active canvas
         if self.current_img_path:
@@ -877,7 +897,7 @@ class MainWindow(QMainWindow):
                 preview = preview[:22] + "..."
             list_item = QListWidgetItem(f"[ + ] {preview}")
             list_item.setForeground(QColor(Config.COLOR_ACCENT))
-            list_item.setToolTip(f"Click to place on canvas with current font:\n{text_str}")
+            list_item.setToolTip(tr("main.click_to_place_on_canvas_with", text_str=text_str))
             list_item.setData(Qt.UserRole, ("PENDING", p_idx))
             self.text_layer_list.addItem(list_item)
 
@@ -951,7 +971,7 @@ class MainWindow(QMainWindow):
         self.btn_italic.setChecked(item.is_italic)
         self.btn_center.setChecked(item.align_center)
         self.btn_stroke_mode.setChecked(item.stroke_enabled)
-        self.btn_stroke_mode.setText("Mode: Stroke (Outside)" if item.stroke_enabled else "Mode: Normal (No Stroke)")
+        self.btn_stroke_mode.setText(tr("main.mode_stroke_outside") if item.stroke_enabled else tr("main.mode_normal_no_stroke"))
         self.stroke_settings_frame.setVisible(item.stroke_enabled)
         self.stroke_spin.setValue(max(1, int(item.stroke_width)))
         self.stroke_op_spin.setValue(int(item.stroke_opacity))
@@ -1027,7 +1047,7 @@ class MainWindow(QMainWindow):
                 self.mark_current_modified()
 
     def choose_text_color(self):
-        c = QColorDialog.getColor(self.canvas.default_text_color, self, "Select Text Fill Color")
+        c = QColorDialog.getColor(self.canvas.default_text_color, self, tr("main.select_text_fill_color"))
         if c.isValid():
             self.canvas.default_text_color = c
             self.update_color_swatches()
@@ -1038,7 +1058,7 @@ class MainWindow(QMainWindow):
                     self.mark_current_modified()
 
     def choose_stroke_color(self):
-        c = QColorDialog.getColor(self.canvas.default_stroke_color, self, "Select Outer Stroke Color")
+        c = QColorDialog.getColor(self.canvas.default_stroke_color, self, tr("main.select_outer_stroke_color"))
         if c.isValid():
             self.canvas.default_stroke_color = c
             self.update_color_swatches()
@@ -1200,7 +1220,7 @@ class MainWindow(QMainWindow):
 
     def _update_queue_ui(self):
         pending = self.total_lama_tasks - self.completed_lama_tasks
-        self.queue_lbl.setText(f"Processing / Queued: {pending}")
+        self.queue_lbl.setText(tr("main.processing_queued_pending", pending=pending))
 
         if pending > 0 and self.total_lama_tasks > 0:
             val = int((self.completed_lama_tasks / self.total_lama_tasks) * 100)
@@ -1278,7 +1298,7 @@ class MainWindow(QMainWindow):
         self.total_lama_tasks = 0
         self.completed_lama_tasks = 0
         self._update_queue_ui()
-        QMessageBox.critical(self, "Hardware Error", message)
+        QMessageBox.critical(self, tr("main.hardware_error"), message)
 
     def _get_final_img_for_path(self, path):
         is_active = (path == self.current_img_path)
@@ -1330,14 +1350,11 @@ class MainWindow(QMainWindow):
                 if is_last: self.finalize_batch()
                 else: self.step_batch()
             elif task in ["ocr", "transparency"]:
-                mask_q = self.canvas.mask if is_active else self.image_sessions[source_path]["mask"]
-                img_cv = self.canvas.cv_img if is_active else self.image_sessions[source_path]["img"]
-
-                ptr = mask_q.bits()
-                mask_np = np.frombuffer(ptr, np.uint8).reshape((mask_q.height(), mask_q.width(), 4))
-                mask_gray = mask_np[:, :, 3].copy()
-                t_size = self.t_slider.slider.value() * 512
-                self.enqueue_task("clean", source_path, img_cv.copy(), mask_gray, t_size)
+                # Scanning creates a mask for later review; only explicit Mask batch mode runs LaMa.
+                final_img = self._get_final_img_for_path(source_path)
+                is_last = self.batch_engine.save_current(final_img)
+                if is_last: self.finalize_batch()
+                else: self.step_batch()
 
         self._process_queue()
 
@@ -1363,7 +1380,7 @@ class MainWindow(QMainWindow):
                 if is_last: self.finalize_batch()
                 else: self.step_batch()
             else:
-                QMessageBox.information(self, "Nothing Selected", "No mask area detected!")
+                QMessageBox.information(self, tr("main.nothing_selected"), tr("main.no_mask_area_detected"))
             return
 
         self.total_lama_tasks += 1
@@ -1397,11 +1414,8 @@ class MainWindow(QMainWindow):
 
         ans = QMessageBox.warning(
             self,
-            "Unplaced Queued Dialogues",
-            f"There are {total_pending_lines} unplaced '[ + ]' dialogue line(s) across {len(pages_with_pending)} page(s):\n"
-            f"{preview}\n\n"
-            f"Unplaced lines in the queue will NOT be rendered onto the exported image.\n"
-            f"Do you want to continue anyway?",
+            tr("main.unplaced_queued_dialogues"),
+            tr("main.there_are_total_pending_lines_unplaced", total_pending_lines=total_pending_lines, count=len(pages_with_pending), preview=preview),
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No
         )
@@ -1435,7 +1449,8 @@ class MainWindow(QMainWindow):
 
         self.batch_engine.initialize_batch(paths, fmt)
         self.is_batching = True
-        self.total_lama_tasks += len(paths)
+        if self.batch_scan_type == "mask":
+            self.total_lama_tasks += len(paths)
         self.step_batch()
         self._check_lock_state()
 
@@ -1462,7 +1477,6 @@ class MainWindow(QMainWindow):
 
             if self.batch_scan_type == "none":
                 img_cv = self._get_final_img_for_path(path)
-                self.total_lama_tasks -= 1
                 
                 self.page_states[path] = PageState.READY
                 self.file_list.update_item_state(path, "ready")
@@ -1510,16 +1524,16 @@ class MainWindow(QMainWindow):
         self.setCursor(Qt.ArrowCursor)
             
         if self.batch_engine.export_format == "none":
-            QMessageBox.information(self, "Batch Complete", "All selected pages processed and updated in the studio memory.")
+            QMessageBox.information(self, tr("main.batch_complete"), tr("main.all_selected_pages_processed_and_updated"))
         else:
-            QMessageBox.information(self, "Batch Complete", f"Saved to: {self.batch_engine.output_dir}")
+            QMessageBox.information(self, tr("main.batch_complete"), tr("main.saved_to_output_dir", output_dir=self.batch_engine.output_dir))
 
     #/////////////////////////////////#
     #         FILE OPERATIONS         #
     #/////////////////////////////////#
 
     def on_open_folder(self):
-        p = QFileDialog.getExistingDirectory(self, "Select Folder")
+        p = QFileDialog.getExistingDirectory(self, tr("main.select_folder"))
         if p:
             self.image_sessions.clear()
             self.pending_page_texts.clear()
@@ -1595,7 +1609,7 @@ class MainWindow(QMainWindow):
                     "texts": []
                 }
             else:
-                QMessageBox.warning(self, "Load Error", f"The file is corrupted or cannot be processed:\n{os.path.basename(path_real)}")
+                QMessageBox.warning(self, tr("main.load_error"), tr("main.the_file_is_corrupted_or_cannot", basename=os.path.basename(path_real)))
                 logger.error(f"Failed to decode image: {path_real}")
                 
         self._check_lock_state()
@@ -1606,7 +1620,7 @@ class MainWindow(QMainWindow):
         if self.canvas.cv_img is None: return
         if self.current_img_path and not self._confirm_unplaced_texts([self.current_img_path]):
             return
-        path, _ = QFileDialog.getSaveFileName(self, "Export", "", f"{fmt.upper()} (*.{fmt})")
+        path, _ = QFileDialog.getSaveFileName(self, tr("main.export_2"), "", f"{fmt.upper()} (*.{fmt})")
         if path:
             composited = self.canvas.get_composited_image()
             if len(composited.shape) == 3 and composited.shape[2] == 4:
@@ -1648,12 +1662,38 @@ class MainWindow(QMainWindow):
 
             if res != "Success":
                 logger.error(f"[X] UI Blocked Editor Bridge Transfer: {res}")
-                QMessageBox.warning(self, "Editor Error", f"Could not send to {target.capitalize()}:\n{res}\n\nCheck your logs folder for details.")
+                QMessageBox.warning(self, tr("main.editor_error"), tr("main.could_not_send_to_capitalize_res", capitalize=target.capitalize(), res=res))
 
     def update_telemetry(self):
         ram, gpu = self.monitor.get_stats()
-        self.hw_mon.lbl.setText(f"{'GPU' if gpu else 'CPU'} | RAM: {ram}MB")
+        self.hw_mon.lbl.setText(tr("main.choice_ram_ram_mb", choice='GPU' if gpu else 'CPU', ram=ram))
         self.hw_mon.bar.setValue(min(ram // 40, 100))
+
+    def on_language_selected(self, language_code, selected_name):
+        saved_language = i18n.get_saved_language() or "auto"
+        if saved_language == language_code:
+            return
+
+        if not i18n.save_language(language_code):
+            QMessageBox.warning(
+                self,
+                tr("main.language_setting_error"),
+                tr("main.language_save_failed"),
+            )
+            return
+
+        active_language = dict(i18n.available_languages()).get(
+            i18n.current_language(), i18n.current_language().upper()
+        )
+        QMessageBox.information(
+            self,
+            tr("main.restart_required"),
+            tr(
+                "main.language_restart_message",
+                selected=selected_name,
+                active=active_language,
+            ),
+        )
 
 #/////////////////////////////////#
 #     BATCH SETUP DIALOG MODAL    #
@@ -1662,7 +1702,7 @@ class MainWindow(QMainWindow):
 class BatchSetupDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Batch Setup")
+        self.setWindowTitle(tr("main.batch_setup"))
         self.setStyleSheet(f"background-color: {Config.COLOR_PANEL}; color: {Config.COLOR_TEXT};")
 
         self.scan_mode = QComboBox()
@@ -1683,8 +1723,8 @@ class BatchSetupDialog(QDialog):
         buttons.setStyleSheet(f"QPushButton {{ background-color: {Config.COLOR_BG}; border: 1px solid #2a2a32; padding: 6px; }}")
 
         layout = QFormLayout(self)
-        layout.addRow("Scan Mode:", self.scan_mode)
-        layout.addRow("Export Format:", self.export_fmt)
+        layout.addRow(tr("main.scan_mode"), self.scan_mode)
+        layout.addRow(tr("main.export_format"), self.export_fmt)
         layout.addWidget(buttons)
 
     def get_results(self):

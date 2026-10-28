@@ -20,19 +20,21 @@ By submitting a Pull Request, you agree that your contributions will be licensed
 1. **Fork the repository** on GitHub.
 2. **Clone your fork** locally:
    ```bash
-   git clone [https://github.com/NeTRuNNeRGLiTCH/manga-cleaner.git](https://github.com/NeTRuNNeRGLiTCH/manga-cleaner.git)
+   git clone https://github.com/YOUR-USERNAME/manga-cleaner.git
    cd manga-cleaner
+   ```
+
 3. **Create and activate a virtual environment:**
 ```bash
-# Windows
-python -m venv venv
-.\venv\Scripts\activate
+   # Windows
+   python -m venv venv
+   .\venv\Scripts\activate
 
-# Linux / macOS
-python3 -m venv venv
-source venv/bin/activate
+   # Linux / macOS
+   python3 -m venv venv
+   source venv/bin/activate
 
-```
+   ```
 
 
 4. **Install runtime dependencies:**
@@ -41,7 +43,7 @@ pip install -r requirements.txt
 ```
 
 
-*(For Linux GPU development, use `pip install -r requirements_linux_gpu.txt`)*
+*(For Linux development, use `pip install -r requirements_linux.txt`.)*
 
 5. **Download the models:** Extract `models.zip` into the root repository directory prior to launching.
 
@@ -70,7 +72,7 @@ docker run --rm -v "$(pwd):/workspace" -w /workspace python:3.12-bookworm bash -
   apt-get update && apt-get install -y libgl1 libglib2.0-0 zip
   python -m venv venv
   source venv/bin/activate
-  pip install -r requirements_linux_gpu.txt pyinstaller
+  pip install -r requirements_linux.txt pyinstaller
   pyinstaller --clean --noconfirm MangaCleaner_GPU_linux.spec
   chown -R $(id -u):$(id -g) dist/ build/
 "
@@ -81,17 +83,17 @@ docker run --rm -v "$(pwd):/workspace" -w /workspace python:3.12-bookworm bash -
 
 ## 🌿 Git Branching Strategy
 
-To keep the repository clean and avoid merge conflicts with upstream:
+Before creating a branch, check the repository's current development branch and contribution instructions. The target branch may differ by release line; do not assume that `main` is the correct target for every change. Do not commit directly to a protected production branch.
 
-* **`main`**: Production-ready code matching active public releases. Do **not** commit directly to `main`.
-* **Feature Branches**: Branch off from `main` using descriptive names:
+* **Target branch**: The branch specified by the maintainers for the feature or release line.
+* **Feature branches**: Use descriptive names:
 * `feat/<feature-name>` for new workspaces, UI modules, or AI pipelines.
 * `fix/<bug-description>` for bug patches and stability adjustments.
 * `refactor/<module>` for performance refactoring or cleanups.
 
 ```bash
-git checkout main
-git pull upstream main
+git checkout YOUR-TARGET-BRANCH
+git pull upstream YOUR-TARGET-BRANCH
 git checkout -b fix/text-gizmo-sensitivity
 
 ```
@@ -116,7 +118,21 @@ git checkout -b fix/text-gizmo-sensitivity
 
 * Enforce **NFC normalization** (`unicodedata.normalize("NFC", text)`) when handling image filenames or dialogue strings to ensure consistent cross-platform behavior between Windows, Linux, and macOS.
 
-### 4. Code Quality & Formatting
+### 4. UI Localization
+
+All new or changed user-visible text must use the localization system. Do not hard-code UI text in Python widgets, dialogs, tooltips, status messages, notifications, or help content, and do not use `print()` to show application messages to users.
+
+* Add every new localization key and its non-empty English value to `locales/en.json`. This catalog is the source of truth and the runtime fallback. If another language does not yet contain a key, the application can display the English text instead of an untranslated key or an empty label. Leave untranslated entries out of a secondary catalog; an explicitly empty value can still produce a blank label.
+* Use `tr("area.key")` for normal UI text and named placeholders such as `tr("area.saved_to", path=path)` for dynamic values. Preserve placeholder names in every locale.
+* Keep internal IDs, file formats, paths, enum values, and values used by program logic stable and separate from translated labels. Use `tr_label()` for tool/category IDs and `QComboBox` item data (`addItem(label, stable_id)` / `currentData()`) when a combo selection is used by code.
+* Translate HTML/help content through catalog keys too. Preserve HTML structure, keyboard shortcut letters, and any literal tokens that users must enter.
+* Update `locales/es.json` when Spanish is the maintained secondary catalog. Other catalogs may be partial; missing entries intentionally fall back to English.
+* Run `python tools/check_locales.py` after catalog changes. Use `python tools/check_locales.py --strict` only when a locale is expected to be complete for release. `python tools/extract_strings.py` can help find hard-coded UI strings, but its report requires human review.
+* Run the relevant UI flow in at least one translated locale and in English fallback when practical. Confirm that labels remain visible and controls still use their stable internal values.
+
+See [`TRANSLATION.md`](TRANSLATION.md) for the catalog format, runtime behavior, and detailed translation workflow.
+
+### 5. Code Quality & Formatting
 
 * Write clean, self-documenting code.
 * Keep internal code comments and docstrings in **English**.
@@ -171,3 +187,5 @@ git push -u origin <your-branch-name>
 ## 💬 Community & Questions
 
 If you encounter bugs, have suggestions, or want to discuss upcoming roadmap milestones, please open an **Issue** on GitHub.
+
+For user-facing text and language catalogs, follow [`TRANSLATION.md`](TRANSLATION.md). New UI text must be added to `locales/en.json` and accessed through the localization API; do not introduce hard-coded display strings.

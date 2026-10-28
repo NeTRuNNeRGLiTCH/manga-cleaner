@@ -56,6 +56,9 @@ def main():
     app.setStyle("Fusion")
     app.setFont(QFont("Segoe UI", 9))
     app.setApplicationName(Config.APP_NAME)
+    app.setLayoutDirection(
+        Qt.RightToLeft if i18n.current_language().lower().startswith("ar") else Qt.LeftToRight
+    )
     
     logger.info(f"--- {Config.APP_NAME.upper()} STARTUP ---")
 

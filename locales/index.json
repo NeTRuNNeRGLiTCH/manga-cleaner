@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "languages": {
+    "en": {
+      "english_name": "English",
+      "native_name": "English"
+    },
+    "es": {
+      "english_name": "Spanish",
+      "native_name": "Español"
+    },
+    "pt-BR": {
+      "english_name": "Portuguese (Brazil)",
+      "native_name": "Português (Brasil)"
+    },
+    "fr": {
+      "english_name": "French",
+      "native_name": "Français"
+    },
+    "ar-EG": {
+      "english_name": "Arabic (Egypt)",
+      "native_name": "العربية (مصر)"
+    }
+  }
+}

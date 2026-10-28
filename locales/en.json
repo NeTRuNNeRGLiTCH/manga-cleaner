@@ -1,5 +1,6 @@
 {
   "meta.language_name": "English",
+  "meta.language_name_english": "English",
   "common.loaded_script_none": "Loaded Script: None",
   "label.brush": "BRUSH",
   "label.bucket": "BUCKET",
@@ -237,5 +238,24 @@
   "translator.unload_script_from_memory": "🗑️ Unload Script from Memory",
   "translator.when_checked_attaches_dialogues_strictly": "When checked, attaches dialogues strictly to the file inside [001.jpg] brackets\n(entries without brackets or with non-existent filenames are skipped and reported).\nWhen unchecked, ignores [] brackets and loads strictly by Image 1, Image 2 order.",
   "widgets.base_label_value_px": "{base_label}: {value}px",
-  "widgets.system_idle": "SYSTEM IDLE"
+  "widgets.system_idle": "SYSTEM IDLE",
+  "common.cancel": "Cancel",
+  "stitcher.one_page_desc": "{name} (1 page)",
+  "stitcher.page_range_desc": "{first} .. {last} ({count} pages)",
+  "stitcher.stitching_blocks_losslessly": "Stitching blocks losslessly...",
+  "translator.tags_not_found": "Could not find <translation> ... </translation> tags in the selected file.\nPlease ensure the tags were not modified or deleted.",
+  "translator.unmatched_image_named": "Image {index} [{fname}]",
+  "translator.unmatched_missing_brackets": "Image {index} [missing brackets]",
+  "translator.mode_filename": "[filename]",
+  "translator.mode_order": "Order",
+  "translator.n_more": " (+{n} more)",
+  "translator.unmatched_pages": "\n⚠️ Unmatched pages ({count}): {preview}\n",
+  "translator.match_by_brackets": "[filename] brackets",
+  "translator.match_by_order": "Image Order",
+  "main.select_language": "Select language",
+  "main.automatic_system_language": "Automatic (system language)",
+  "main.restart_required": "Restart required",
+  "main.language_restart_message": "Selected language: {selected}\nCurrently active language: {active}.\n\nRestart Manga Cleaner Studio to apply the selected language.",
+  "main.language_setting_error": "Language setting error",
+  "main.language_save_failed": "The language preference could not be saved. Check that the application can write to its settings folder."
 }

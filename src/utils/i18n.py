@@ -115,6 +115,39 @@ def _load_language(code):
     return merged
 
 
+def _load_language_index(folder):
+    """Read display names from the small index instead of parsing every catalog."""
+    if not folder or not os.path.isdir(folder):
+        return {}
+    path = os.path.join(folder, "index.json")
+    try:
+        with open(path, "r", encoding="utf-8-sig") as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        return {}
+    except (OSError, ValueError) as e:
+        log.warning(f"i18n: ignoring language index {path}: {e}")
+        return {}
+
+    languages = data.get("languages") if isinstance(data, dict) else None
+    if not isinstance(languages, dict):
+        log.warning(f"i18n: ignoring language index {path}: 'languages' must be an object")
+        return {}
+
+    found = {}
+    for code, names in languages.items():
+        if not isinstance(code, str) or not isinstance(names, dict):
+            continue
+        english_name = names.get("english_name")
+        native_name = names.get("native_name")
+        if not isinstance(english_name, str) or not english_name.strip():
+            continue
+        if not isinstance(native_name, str) or not native_name.strip():
+            continue
+        found[_norm(code)] = (code, english_name.strip(), native_name.strip())
+    return found
+
+
 # ----------------------------------------------------------------------------
 # Settings (tiny JSON next to the other cache files; keeps unrelated keys)
 # ----------------------------------------------------------------------------
@@ -159,14 +192,35 @@ def save_language(code):
 # Public API
 # ----------------------------------------------------------------------------
 def available_languages():
-    """[(code, display_name)] - English first, then alphabetical by name."""
-    codes = {}
+    """[(code, display_name)] - English first, then alphabetical by English display name."""
+    catalog_files = {}
     for folder in (_state["bundled_dir"], _state["user_dir"]):
         for norm, (code, path) in _scan_dir(folder).items():
-            codes[norm] = (code, path)  # user dir overrides the entry
+            catalog_files[norm] = (code, path)  # user dir overrides the entry
+
+    metadata = {}
+    for folder in (_state["bundled_dir"], _state["user_dir"]):
+        for norm, (code, english_name, native_name) in _load_language_index(folder).items():
+            if norm in catalog_files:
+                catalog_code = catalog_files[norm][0]
+                metadata[norm] = (catalog_code, english_name, native_name)
+
+    # Backward compatibility for old/custom locale folders without an index.
+    if not metadata:
+        for norm, (code, _path) in catalog_files.items():
+            catalog = _load_language(code)
+            native_name = catalog.get(META_PREFIX + "language_name") or code
+            english_name = catalog.get(META_PREFIX + "language_name_english")
+            if not english_name and norm == FALLBACK_LANG:
+                english_name = "English"
+            metadata[norm] = (code, english_name or native_name, native_name)
+
     result = []
-    for norm, (code, path) in codes.items():
-        name = _load_language(code).get(META_PREFIX + "language_name") or code
+    for norm, (code, english_name, native_name) in metadata.items():
+        if english_name and english_name.casefold() != native_name.casefold():
+            name = f"{english_name} ({native_name})"
+        else:
+            name = native_name
         result.append((code, name))
     result.sort(key=lambda t: (_norm(t[0]) != FALLBACK_LANG, t[1].lower()))
     return result
