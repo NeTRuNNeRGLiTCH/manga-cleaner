@@ -1706,7 +1706,7 @@ class BatchSetupDialog(QDialog):
         self.setStyleSheet(f"background-color: {Config.COLOR_PANEL}; color: {Config.COLOR_TEXT};")
 
         self.scan_mode = QComboBox()
-        for _id, _key in (("none", "main.none"), ("Mask", "main.mask"),
+        for _id, _key in (("none", "main.none"), ("Mask", "main.mask_cleanup"),
                           ("OCR Scan", "main.ocr_scan"), ("Transparency Scan", "main.transparency_scan")):
             self.scan_mode.addItem(tr(_key), _id)
         self.scan_mode.setStyleSheet(f"background-color: {Config.COLOR_BG}; border: 1px solid #2a2a32; padding: 4px;")
@@ -1723,7 +1723,7 @@ class BatchSetupDialog(QDialog):
         buttons.setStyleSheet(f"QPushButton {{ background-color: {Config.COLOR_BG}; border: 1px solid #2a2a32; padding: 6px; }}")
 
         layout = QFormLayout(self)
-        layout.addRow(tr("main.scan_mode"), self.scan_mode)
+        layout.addRow(tr("main.processing_mode"), self.scan_mode)
         layout.addRow(tr("main.export_format"), self.export_fmt)
         layout.addWidget(buttons)
 
