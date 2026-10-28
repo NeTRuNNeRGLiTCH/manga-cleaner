@@ -8,7 +8,7 @@
 [![Downloads](https://img.shields.io/github/downloads/NeTRuNNeRGLiTCH/manga-cleaner/total?color=blue&style=for-the-badge)](https://github.com/NeTRuNNeRGLiTCH/manga-cleaner/releases)
 [![Sibling App](https://img.shields.io/badge/Sibling_Project-Manga_Translate-ff007f?style=for-the-badge)](https://github.com/santiagodvergara05-debug/manga-translate-studio)
 
-**Manga Cleaner Studio** is a desktop toolkit for preparing manga and webtoon pages. It combines AI-assisted image cleanup and manual mask editing with OCR and transparency scanning, text placement and styling, script synchronization, and lossless vertical stitching. Its multi-language interface includes English, Spanish, Brazilian Portuguese, French, and Egyptian Arabic catalogs, with English fallback for untranslated text.
+**Manga Cleaner Studio** is a desktop toolkit for preparing manga and webtoon pages. It combines AI-assisted image cleanup and manual mask editing with OCR and transparency scanning, text placement and styling, script synchronization, and lossless vertical stitching. Its multi-language interface includes English, Spanish, Brazilian Portuguese, French, and Egyptian Arabic catalogs, with English fallback for untranslated text. You can add more languages ​​by submitting a PR and checking [`TRANSLATION.md`](TRANSLATION.md).
 
 ---
 
