@@ -1,8 +1,8 @@
-# 🌌 MANGA CLEANER STUDIO v3.4.0
+# 🌌 MANGA CLEANER STUDIO v3.4.2
 
 **AI-assisted manga and webtoon cleanup, typesetting, translation workflow, and page assembly.**
 
-[![Download v3.4.0](https://img.shields.io/badge/DOWNLOAD-v3.4.0-00d4ff?style=for-the-badge&logo=github)](https://github.com/NeTRuNNeRGLiTCH/manga-cleaner/releases)
+[![Download v3.4.2](https://img.shields.io/badge/DOWNLOAD-v3.4.2-00d4ff?style=for-the-badge&logo=github)](https://github.com/NeTRuNNeRGLiTCH/manga-cleaner/releases)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=for-the-badge)](https://opensource.org/licenses/Apache-2.0)
 [![Python Version](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-blue?style=for-the-badge)](https://www.python.org/)
 [![Downloads](https://img.shields.io/github/downloads/NeTRuNNeRGLiTCH/manga-cleaner/total?color=blue&style=for-the-badge)](https://github.com/NeTRuNNeRGLiTCH/manga-cleaner/releases)
@@ -238,17 +238,60 @@ Interested in contributing code, models, or optimizations? Please review **[CONT
 
 ```text
 manga-cleaner/
-├── assets/                 # Application icons and bundled UI assets
-├── locales/                # Language catalogs and language index
+├── assets/                         # Application icons and bundled UI assets
+├── locales/                        # Language catalogs and language index
+│   ├── ar-EG.json                  # Egyptian Arabic
+│   ├── en.json                     # English source catalog and fallback
+│   ├── es.json                     # Spanish
+│   ├── fr.json                     # French
+│   ├── index.json                  # Language names used during startup
+│   └── pt-BR.json                  # Brazilian Portuguese
 ├── src/
-│   ├── backend/            # Image processing, AI, batch, and export logic
-│   ├── frontend/           # PySide6 windows, widgets, canvas, and styles
-│   └── utils/              # Configuration, localization, paths, and logging
-├── tests/                  # Automated tests
-├── tools/                  # Locale validation and migration helpers
-├── main.py                 # Application entry point
-├── CONTRIBUTING.md         # Development and contribution guidelines
-└── TRANSLATION.md          # Localization and catalog workflow
+│   ├── backend/                    # Image processing, AI, batch, and export logic
+│   │   ├── ai_manager.py           # AI model inference and cleanup
+│   │   ├── batch_engine.py         # Batch job setup and processing queue
+│   │   ├── model_manager.py        # AI model locations and Hugging Face downloads
+│   │   ├── onnx_engine.py          # ONNX runtime setup and inference helpers
+│   │   ├── photopea.py             # Photopea integration
+│   │   ├── photoshop.py            # Adobe Photoshop integration
+│   │   ├── processor.py            # Image processing pipeline
+│   │   ├── stitcher.py             # Lossless page stitching
+│   │   ├── translator.py           # Translation script parsing and synchronization
+│   │   └── workers.py              # Background processing workers
+│   ├── frontend/                   # PySide6 windows, widgets, canvas, and styles
+│   │   ├── batch_setup_dialog.py   # Batch scan and export options
+│   │   ├── canvas.py               # Image canvas and interactive text items
+│   │   ├── help_system.py          # In-app help window and guides
+│   │   ├── main_window.py          # Main application window and controller
+│   │   ├── model_manager_dialog.py # Model information and download UI
+│   │   ├── project_reset.py        # Project reset and cleanup controller
+│   │   ├── styles.qss              # Application stylesheet
+│   │   ├── typesetter_panel.py     # Typesetting controls and text queue
+│   │   └── widgets.py              # Shared UI widgets
+│   └── utils/                      # Configuration, localization, paths, and logging
+│       ├── config.py               # Application constants and settings
+│       ├── history.py              # Undo and redo history
+│       ├── i18n.py                 # JSON localization engine
+│       ├── logger.py               # Application logging
+│       ├── paths.py                # Runtime and resource path handling
+│       └── system_info.py          # System and hardware monitoring
+├── tests/
+│   └── test_i18n.py                # Localization behavior tests
+├── tools/                          # Locale extraction, migration, and validation helpers
+│   ├── check_locales.py            # Validate catalogs and placeholders
+│   ├── extract_strings.py          # Find visible strings in the source
+│   ├── fix_leftovers.py            # Apply reviewed one-time migration fixes
+│   └── migrate_to_tr.py            # Migrate visible text to translation calls
+├── .gitignore                      # Excluded local, generated, and runtime files
+├── CONTRIBUTING.md                 # Development and contribution guidelines
+├── LICENSE                         # Apache 2.0 license
+├── main.py                         # Application entry point
+├── MangaCleaner_CPU*.spec          # PyInstaller CPU build specifications
+├── MangaCleaner_GPU*.spec          # PyInstaller GPU build specifications
+├── README.md                       # Project overview and setup instructions
+├── requirements.txt                # Windows and general Python dependencies
+├── requirements_linux.txt          # Linux Python dependencies
+└── TRANSLATION.md                  # Localization and catalog workflow
 ```
 
 Runtime data, downloaded models, build outputs, and processed images are created or installed separately and are not part of the source tree shown above. See [Running from Source](#-running-from-source) and [CONTRIBUTING.md](CONTRIBUTING.md).

@@ -27,7 +27,7 @@ class AIManager:
                 logger.info(f"[+] Lazy loading OCR model into VRAM: {path}")
                 AIManager._ocr_engine = ONNXEngine(path)
             else:
-                logger.error(f"[X] OCR Model Missing: {path}")
+                raise FileNotFoundError(f"OCR model is missing: {path}")
         return AIManager._ocr_engine
 
     @staticmethod
@@ -38,7 +38,7 @@ class AIManager:
                 logger.info(f"[+] Lazy loading LaMa model into VRAM: {path}")
                 AIManager._lama_engine = ONNXEngine(path)
             else:
-                logger.error(f"[X] LaMa Model Missing: {path}")
+                raise FileNotFoundError(f"LaMa model is missing: {path}")
         return AIManager._lama_engine
 
     @staticmethod

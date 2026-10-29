@@ -1,35 +1,30 @@
 import os
 import re
-import json
-import shutil
 import cv2
 import numpy as np
 from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
                              QLabel, QPushButton, QFrame, QSplitter, QFileDialog,
-                             QMenu, QMessageBox, QGraphicsView, QProgressBar, QInputDialog,
-                             QDialog, QComboBox, QDialogButtonBox, QFormLayout, QCheckBox,
-                             QSpinBox, QColorDialog, QListWidget, QListWidgetItem,
-                             QStackedWidget, QLineEdit)
-from PySide6.QtGui import QShortcut, QKeySequence, QImage, QPainterPath, QColor, QFontDatabase, QFont
+                             QMenu, QMessageBox, QGraphicsView, QProgressBar,
+                             QDialog, QCheckBox, QColorDialog, QStackedWidget)
+from PySide6.QtGui import QShortcut, QKeySequence, QImage, QPainterPath, QColor
 from PySide6.QtCore import Qt, QTimer, QThread
 from enum import Enum, auto
 from src.frontend.widgets import (FileListWidget, ToolGroup, LabeledSlider, 
                                 HardwareMonitor, CategorySelector, ColorSwatchButton)
 from src.utils.i18n import tr, tr_label
-from src.frontend.canvas import MangaCanvas, MangaTextItem
+from src.frontend.canvas import MangaCanvas
 from src.frontend.help_system import HelpSystem
 from src.utils.system_info import SystemMonitor
 from src.utils.history import HistoryManager
 from src.utils.config import Config
-from src.utils.paths import Paths
 from src.utils.logger import logger
+from src.utils.paths import Paths
 from src.utils import i18n
-from src.backend.photoshop import PhotoshopBridge
-from src.backend.photopea import PhotopeaBridge
 from src.backend.batch_engine import BatchEngine
-from src.backend.workers import AIWorker, get_pool, _run_flush_process
-from src.backend.stitcher import StitcherPanel
-from src.backend.translator import TranslatorPanel
+from src.backend.model_manager import MODEL_SPECS, ModelManager
+from src.frontend.batch_setup_dialog import BatchSetupDialog
+from src.frontend.model_manager_dialog import ModelManagerDialog
+from src.frontend.typesetter_panel import TypesetterPanel
 from src.frontend.project_reset import ProjectResetController
 
 
@@ -50,6 +45,7 @@ class PageState(Enum):
 
 class MainWindow(QMainWindow):
     def __init__(self):
+        """Initialize the main window, shared application state, and startup services."""
         super().__init__()
         self.setWindowTitle(tr("main.app_name_v_version", app_name=Config.APP_NAME, version=Config.VERSION))
         self.resize(1500, 900)
@@ -68,23 +64,6 @@ class MainWindow(QMainWindow):
         self.is_space_moving = False
         self.pre_space_tool = "NONE"
 
-        # Font Filter, Favorites & Alias Database (stored in cache/)
-        self.font_prefs_path = os.path.join(Paths.CACHE, "font_presets.json")
-        
-        # Automatic transparent migration from previous legacy locations
-        old_preset_path = os.path.join(Paths.BUNDLE_DIR, "font_presets.json")
-        if not os.path.exists(self.font_prefs_path) and os.path.exists(old_preset_path):
-            try:
-                shutil.move(old_preset_path, self.font_prefs_path)
-            except Exception as e:
-                logger.warning(f"Could not migrate legacy font presets: {e}")
-
-        self.favorite_fonts = set()
-        self.font_aliases = {}
-        self.fav_only_pref = False
-        self.last_selected_font = "Arial"
-        self.all_system_fonts = sorted(QFontDatabase.families())
-        self.load_font_prefs()
         
         self.current_img_path = None
         self.batch_scan_type = "ocr"
@@ -103,34 +82,54 @@ class MainWindow(QMainWindow):
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_telemetry)
         self.timer.start(2000)
+        QTimer.singleShot(600, self.prompt_model_setup_on_first_run)
         logger.info("--- STUDIO INTERFACE READY ---")
 
-    # --- FONT PREFERENCES PERSISTENCE ---
-    def load_font_prefs(self):
-        if os.path.exists(self.font_prefs_path):
-            try:
-                with open(self.font_prefs_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    self.favorite_fonts = set(data.get("favorites", []))
-                    self.font_aliases = dict(data.get("aliases", {}))
-                    self.fav_only_pref = bool(data.get("fav_only", False))
-                    self.last_selected_font = str(data.get("last_font", "Arial"))
-            except Exception as e:
-                logger.error(f"Failed to load font presets: {e}")
+    def prompt_model_setup_on_first_run(self):
+        """Offer optional model downloads once when the application has no models."""
+        missing = [key for key in MODEL_SPECS if not ModelManager.is_available(key)]
+        marker_path = os.path.join(Paths.CACHE, "model_setup_prompted")
+        if not missing or os.path.exists(marker_path):
+            return
 
-    def save_font_prefs(self):
         try:
-            with open(self.font_prefs_path, "w", encoding="utf-8") as f:
-                json.dump({
-                    "favorites": sorted(list(self.favorite_fonts)),
-                    "aliases": self.font_aliases,
-                    "fav_only": bool(self.fav_only_pref),
-                    "last_font": self.last_selected_font
-                }, f, indent=2, ensure_ascii=False)
-        except Exception as e:
-            logger.error(f"Failed to save font presets: {e}")
+            with open(marker_path, "w", encoding="utf-8") as marker:
+                marker.write("shown")
+        except OSError as exc:
+            logger.warning(f"Could not save first-run model prompt state: {exc}")
+
+        dialog = ModelManagerDialog(self, model_keys=missing, setup_mode=True)
+        dialog.exec()
+
+    def open_model_manager(self):
+        """Open the model information and download window for all AI models."""
+        dialog = ModelManagerDialog(self, model_keys=list(MODEL_SPECS))
+        dialog.exec()
+
+    def ensure_model_available(self, model_key):
+        """Prompt to download a missing model and return whether it is ready."""
+        if ModelManager.is_available(model_key):
+            return True
+
+        model_name = ModelManager.model_name(model_key)
+        message = QMessageBox(self)
+        message.setIcon(QMessageBox.Warning)
+        message.setWindowTitle(tr("models.model_required_title"))
+        message.setText(tr("models.model_required_message", model=model_name))
+        download_button = message.addButton(
+            tr("models.download_model"), QMessageBox.AcceptRole
+        )
+        message.addButton(tr("common.cancel"), QMessageBox.RejectRole)
+        message.exec()
+        if message.clickedButton() != download_button:
+            return False
+
+        dialog = ModelManagerDialog(self, model_keys=[model_key])
+        dialog.exec()
+        return ModelManager.is_available(model_key)
 
     def init_ui(self):
+        """Build the application shell, navigation, canvas, and category workspaces."""
         self.central = QWidget()
         self.setCentralWidget(self.central)
         main_lay = QVBoxLayout(self.central)
@@ -201,7 +200,10 @@ class MainWindow(QMainWindow):
         self.btn_language.setMenu(language_menu)
 
         # Let translated labels determine button width through each button's sizeHint.
-        for nav_button in (self.btn_language, btn_help, btn_open, btn_reset, self.btn_editor, self.btn_export):
+        btn_models = QPushButton(tr("models.manage"))
+        btn_models.clicked.connect(self.open_model_manager)
+
+        for nav_button in (self.btn_language, btn_help, btn_models, btn_open, btn_reset, self.btn_editor, self.btn_export):
             nav_button.setMinimumHeight(30)
 
         nav_lay.addWidget(title)
@@ -210,6 +212,7 @@ class MainWindow(QMainWindow):
         nav_lay.addSpacing(10)
         nav_lay.addWidget(self.btn_language)
         nav_lay.addWidget(btn_help)
+        nav_lay.addWidget(btn_models)
         nav_lay.addWidget(btn_open)
         nav_lay.addWidget(btn_reset)
         nav_lay.addWidget(self.btn_editor)
@@ -248,13 +251,11 @@ class MainWindow(QMainWindow):
         #             CANVAS              #
         #/////////////////////////////////#
         self.canvas = MangaCanvas()
-        self.canvas.default_font_family = self.last_selected_font
         self.canvas.mask_changed.connect(lambda: self.history.push_mask_state(self.canvas.mask))
         self.canvas.mask_changed.connect(self.mark_current_modified)
         self.canvas.image_patch_created.connect(self.on_manual_image_patch)
         self.canvas.clean_color_picked.connect(self.on_clean_color_picked)
         self.canvas.text_modified.connect(self.mark_current_modified)
-        self.canvas.text_selected.connect(self.sync_text_ui_from_item)
         self.canvas.texts_list_changed.connect(self.refresh_page_text_list)
         
         #/////////////////////////////////#
@@ -364,227 +365,32 @@ class MainWindow(QMainWindow):
         cl_lay.addWidget(self.queue_lbl)
         cl_lay.addStretch()
 
-        # ==========================================
         # PAGE 1: TYPESETTER CATEGORY WORKSPACE
-        # ==========================================
-        self.typesetter_page = QWidget()
-        tp_lay = QVBoxLayout(self.typesetter_page)
-        tp_lay.setContentsMargins(4, 4, 4, 4)
-        tp_lay.setSpacing(6)
-
-        self.type_tools = ToolGroup(tr("main.typesetter_tools"), ["MOVE", "TEXT"])
-        self.type_tools.buttons["MOVE"].clicked.connect(lambda: self.set_tool("NONE"))
-        self.type_tools.buttons["TEXT"].clicked.connect(lambda: self.set_tool("TEXT"))
-        tp_lay.addWidget(self.type_tools)
-
-        # --- FONT FILTER, FAVORITES & ALIASES ---
-        tp_title = QLabel(tr("main.font_manager_filter"))
-        tp_title.setStyleSheet(f"color: {Config.COLOR_TEXT_DIM}; font-size: 9px; font-weight: bold;")
-        tp_lay.addWidget(tp_title)
-
-        row_filter = QHBoxLayout()
-        self.font_search = QLineEdit()
-        self.font_search.setPlaceholderText(tr("main.search_font_or_alias"))
-        self.font_search.setStyleSheet(f"background: {Config.COLOR_BG}; border: 1px solid #2a2a32; padding: 3px; font-size: 11px;")
-        self.font_search.textChanged.connect(self.populate_font_combo)
-
-        self.chk_fav_only = QCheckBox(tr("main.only"))
-        self.chk_fav_only.setToolTip(tr("main.show_only_favorite_fonts_saved_across"))
-        self.chk_fav_only.setStyleSheet(f"color: {Config.COLOR_ACCENT}; font-size: 10px; font-weight: bold;")
-        self.chk_fav_only.setChecked(self.fav_only_pref)
-        self.chk_fav_only.toggled.connect(self.on_fav_only_toggled)
-
-        row_filter.addWidget(self.font_search, 1)
-        row_filter.addWidget(self.chk_fav_only)
-        tp_lay.addLayout(row_filter)
-
-        row_font_sel = QHBoxLayout()
-        self.font_combo = QComboBox()
-        self.font_combo.setStyleSheet(f"background: {Config.COLOR_BG}; border: 1px solid #2a2a32; padding: 4px; font-size: 11px;")
-        self.font_combo.currentIndexChanged.connect(self.on_font_combo_selected)
-
-        self.btn_fav_font = QPushButton("☆")
-        self.btn_fav_font.setFixedWidth(28)
-        self.btn_fav_font.setToolTip(tr("main.toggle_favorite_for_current_font"))
-        self.btn_fav_font.clicked.connect(self.toggle_current_font_favorite)
-
-        self.btn_alias_font = QPushButton("✎")
-        self.btn_alias_font.setFixedWidth(28)
-        self.btn_alias_font.setToolTip(tr("main.set_custom_alias_use_case_name"))
-        self.btn_alias_font.clicked.connect(self.rename_current_font_alias)
-
-        row_font_sel.addWidget(self.font_combo, 1)
-        row_font_sel.addWidget(self.btn_fav_font)
-        row_font_sel.addWidget(self.btn_alias_font)
-        tp_lay.addLayout(row_font_sel)
-
-        # Size, Bold, Italic, Align
-        row_style = QHBoxLayout()
-        lbl_sz = QLabel(tr("main.size"))
-        lbl_sz.setStyleSheet(f"color: {Config.COLOR_TEXT_DIM}; font-size: 10px;")
-        self.font_size_spin = QSpinBox()
-        self.font_size_spin.setRange(6, 300)
-        self.font_size_spin.setValue(32)
-        self.font_size_spin.valueChanged.connect(self.on_text_style_ui_changed)
-
-        self.btn_bold = QPushButton(tr("main.b"))
-        self.btn_bold.setCheckable(True)
-        self.btn_bold.setFixedWidth(28)
-        self.btn_bold.clicked.connect(self.on_text_style_ui_changed)
-
-        self.btn_italic = QPushButton(tr("main.i"))
-        self.btn_italic.setCheckable(True)
-        self.btn_italic.setFixedWidth(28)
-        self.btn_italic.clicked.connect(self.on_text_style_ui_changed)
-
-        self.btn_center = QPushButton("≡")
-        self.btn_center.setToolTip(tr("main.center_align_text"))
-        self.btn_center.setCheckable(True)
-        self.btn_center.setChecked(True)
-        self.btn_center.setFixedWidth(28)
-        self.btn_center.clicked.connect(self.on_text_style_ui_changed)
-
-        row_style.addWidget(lbl_sz)
-        row_style.addWidget(self.font_size_spin, 1)
-        row_style.addWidget(self.btn_bold)
-        row_style.addWidget(self.btn_italic)
-        row_style.addWidget(self.btn_center)
-        tp_lay.addLayout(row_style)
-
-        # Rotation & Fit Box Row
-        row_rot = QHBoxLayout()
-        lbl_rot = QLabel(tr("main.angle"))
-        lbl_rot.setStyleSheet(f"color: {Config.COLOR_TEXT_DIM}; font-size: 10px;")
-        self.rot_spin = QSpinBox()
-        self.rot_spin.setRange(-180, 180)
-        self.rot_spin.setSuffix("°")
-        self.rot_spin.setValue(0)
-        self.rot_spin.valueChanged.connect(self.on_text_rotation_ui_changed)
-
-        self.btn_reset_rot = QPushButton("0°")
-        self.btn_reset_rot.setToolTip(tr("main.reset_rotation_to_0"))
-        self.btn_reset_rot.setFixedWidth(34)
-        self.btn_reset_rot.clicked.connect(lambda: self.rot_spin.setValue(0))
-
-        self.btn_auto_width = QPushButton(tr("main.fit_box"))
-        self.btn_auto_width.setToolTip(tr("main.reset_box_width_to_auto_fit"))
-        self.btn_auto_width.clicked.connect(self.on_reset_box_width)
-
-        row_rot.addWidget(lbl_rot)
-        row_rot.addWidget(self.rot_spin, 1)
-        row_rot.addWidget(self.btn_reset_rot)
-        row_rot.addWidget(self.btn_auto_width)
-        tp_lay.addLayout(row_rot)
-
-        # --- PHOTOSHOP-STYLE COLOR SWATCHES & SINGLE RENDER MODE BUTTON ---
-        lbl_col = QLabel(tr("main.color_swatches_stroke_mode"))
-        lbl_col.setStyleSheet(f"color: {Config.COLOR_TEXT_DIM}; font-size: 9px; font-weight: bold; margin-top: 4px;")
-        tp_lay.addWidget(lbl_col)
-
-        row_colors = QHBoxLayout()
-        lbl_fill_tag = QLabel(tr("main.fill"))
-        lbl_fill_tag.setStyleSheet(f"color: {Config.COLOR_TEXT_DIM}; font-size: 10px;")
-        self.swatch_text_color = ColorSwatchButton(QColor(0, 0, 0), width=42, height=24, tooltip=tr("main.click_to_pick_fill_color"))
-        self.swatch_text_color.clicked.connect(self.choose_text_color)
-
-        self.btn_swap_colors = QPushButton("⇄")
-        self.btn_swap_colors.setToolTip(tr("main.swap_fill_and_stroke_colors"))
-        self.btn_swap_colors.setFixedWidth(30)
-        self.btn_swap_colors.clicked.connect(self.swap_text_and_stroke_colors)
-
-        lbl_str_tag = QLabel(tr("main.stroke"))
-        lbl_str_tag.setStyleSheet(f"color: {Config.COLOR_TEXT_DIM}; font-size: 10px;")
-        self.swatch_stroke_color = ColorSwatchButton(QColor(255, 255, 255), width=42, height=24, tooltip=tr("main.click_to_pick_outer_stroke_color"))
-        self.swatch_stroke_color.clicked.connect(self.choose_stroke_color)
-
-        row_colors.addWidget(lbl_fill_tag)
-        row_colors.addWidget(self.swatch_text_color)
-        row_colors.addStretch()
-        row_colors.addWidget(self.btn_swap_colors)
-        row_colors.addStretch()
-        row_colors.addWidget(lbl_str_tag)
-        row_colors.addWidget(self.swatch_stroke_color)
-        tp_lay.addLayout(row_colors)
-
-        # Single Toggle Button for Normal vs Stroke Mode
-        self.btn_stroke_mode = QPushButton(tr("main.mode_normal_no_stroke"))
-        self.btn_stroke_mode.setCheckable(True)
-        self.btn_stroke_mode.setToolTip(tr("main.toggle_between_normal_text_and_outer"))
-        self.btn_stroke_mode.toggled.connect(self.on_stroke_mode_toggled)
-        tp_lay.addWidget(self.btn_stroke_mode)
-
-        self.stroke_settings_frame = QFrame()
-        row_stroke = QHBoxLayout(self.stroke_settings_frame)
-        row_stroke.setContentsMargins(0, 0, 0, 0)
-        lbl_st = QLabel(tr("main.size"))
-        lbl_st.setStyleSheet(f"color: {Config.COLOR_TEXT_DIM}; font-size: 10px;")
-        self.stroke_spin = QSpinBox()
-        self.stroke_spin.setRange(1, 30)
-        self.stroke_spin.setSuffix(" px")
-        self.stroke_spin.setValue(3)
-        self.stroke_spin.valueChanged.connect(self.on_text_style_ui_changed)
-
-        lbl_op = QLabel(tr("main.opacity"))
-        lbl_op.setStyleSheet(f"color: {Config.COLOR_TEXT_DIM}; font-size: 10px;")
-        self.stroke_op_spin = QSpinBox()
-        self.stroke_op_spin.setRange(10, 100)
-        self.stroke_op_spin.setSuffix("%")
-        self.stroke_op_spin.setValue(100)
-        self.stroke_op_spin.valueChanged.connect(self.on_text_style_ui_changed)
-
-        row_stroke.addWidget(lbl_st)
-        row_stroke.addWidget(self.stroke_spin, 1)
-        row_stroke.addWidget(lbl_op)
-        row_stroke.addWidget(self.stroke_op_spin, 1)
-        tp_lay.addWidget(self.stroke_settings_frame)
-        self.stroke_settings_frame.setVisible(False)
-
-        # Page Text Detector List & Preview Outlines Toggle
-        row_layers_hdr = QHBoxLayout()
-        self.lbl_text_layers = QLabel(tr("main.page_text_layers_0_placed_0"))
-        self.lbl_text_layers.setStyleSheet(f"color: {Config.COLOR_TEXT_DIM}; font-size: 9px; font-weight: bold; margin-top: 4px;")
-
-        self.chk_show_guides = QCheckBox(tr("main.show_outlines"))
-        self.chk_show_guides.setToolTip(tr("main.toggle_bounding_boxes_visibility_for_uns"))
-        self.chk_show_guides.setStyleSheet(f"color: {Config.COLOR_ACCENT}; font-size: 10px; font-weight: bold;")
-        self.chk_show_guides.setChecked(True)
-        self.chk_show_guides.toggled.connect(self.canvas.set_show_text_guides)
-
-        row_layers_hdr.addWidget(self.lbl_text_layers)
-        row_layers_hdr.addStretch()
-        row_layers_hdr.addWidget(self.chk_show_guides)
-        tp_lay.addLayout(row_layers_hdr)
-
-        self.text_layer_list = QListWidget()
-        self.text_layer_list.setMinimumHeight(110)
-        self.text_layer_list.setStyleSheet(f"background: {Config.COLOR_BG}; border: 1px solid #2a2a32; font-size: 11px;")
-        self.text_layer_list.itemClicked.connect(self.on_text_layer_item_clicked)
-        tp_lay.addWidget(self.text_layer_list, 1)
-
-        row_del_btns = QHBoxLayout()
-        self.btn_del_text = QPushButton(tr("main.delete_selected"))
-        self.btn_del_text.clicked.connect(self.canvas.delete_selected_texts)
-        self.btn_clear_texts = QPushButton(tr("main.clear_all"))
-        self.btn_clear_texts.clicked.connect(self.on_clear_all_page_texts)
-        row_del_btns.addWidget(self.btn_del_text, 1)
-        row_del_btns.addWidget(self.btn_clear_texts, 1)
-        tp_lay.addLayout(row_del_btns)
+        self.typesetter_panel = TypesetterPanel(self)
+        self.typesetter_page = self.typesetter_panel
+        self.canvas.text_selected.connect(self.typesetter_panel.sync_text_ui_from_item)
 
         # ==========================================
-        # PAGE 2: STITCHER CATEGORY WORKSPACE
+        # PAGE 2: STITCHER CATEGORY WORKSPACE (constructed on first use)
         # ==========================================
-        self.stitcher_page = StitcherPanel(self)
+        self.stitcher_page = None
+        self.stitcher_container = QWidget()
+        self.stitcher_layout = QVBoxLayout(self.stitcher_container)
+        self.stitcher_layout.setContentsMargins(0, 0, 0, 0)
 
         # ==========================================
-        # PAGE 3: TRANSLATOR CATEGORY WORKSPACE
+        # PAGE 3: TRANSLATOR CATEGORY WORKSPACE (constructed on first use)
         # ==========================================
-        self.translator_page = TranslatorPanel(self)
+        self.translator_page = None
+        self.translator_container = QWidget()
+        self.translator_layout = QVBoxLayout(self.translator_container)
+        self.translator_layout.setContentsMargins(0, 0, 0, 0)
 
         # Add all 4 Category Pages to Stack
         self.category_stack.addWidget(self.cleaner_page)     # Index 0: CLEANER
         self.category_stack.addWidget(self.typesetter_page)  # Index 1: TYPESETTER
-        self.category_stack.addWidget(self.stitcher_page)    # Index 2: STITCHER
-        self.category_stack.addWidget(self.translator_page)  # Index 3: TRANSLATOR
+        self.category_stack.addWidget(self.stitcher_container)    # Index 2: STITCHER
+        self.category_stack.addWidget(self.translator_container)  # Index 3: TRANSLATOR
 
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
@@ -599,121 +405,14 @@ class MainWindow(QMainWindow):
         split.setSizes([220, 1000, 250])
         main_lay.addWidget(split, 1)
 
-        self.populate_font_combo()
-        self.update_color_swatches()
         self.set_category("CLEANER")
-
-    #/////////////////////////////////#
-    #    FONT FILTER & ALIAS LOGIC    #
-    #/////////////////////////////////#
-
-    def get_selected_font_family(self) -> str:
-        fam = self.font_combo.currentData(Qt.UserRole)
-        return fam if fam else self.last_selected_font
-
-    def on_fav_only_toggled(self, checked: bool):
-        self.fav_only_pref = bool(checked)
-        self.save_font_prefs()
-        self.populate_font_combo()
-
-    def populate_font_combo(self):
-        current_fam = self.font_combo.currentData(Qt.UserRole)
-        if not current_fam:
-            current_fam = self.last_selected_font or self.canvas.default_font_family
-
-        query = self.font_search.text().strip().lower()
-        fav_only = self.chk_fav_only.isChecked()
-
-        self.font_combo.blockSignals(True)
-        self.font_combo.clear()
-
-        sorted_fonts = sorted(
-            self.all_system_fonts,
-            key=lambda f: (0 if f in self.favorite_fonts else 1, self.font_aliases.get(f, f).lower())
-        )
-
-        selected_idx = 0
-        for fam in sorted_fonts:
-            is_fav = fam in self.favorite_fonts
-            if fav_only and not is_fav:
-                continue
-
-            alias = self.font_aliases.get(fam, "")
-            searchable = f"{fam.lower()} {alias.lower()}"
-            if query and query not in searchable:
-                continue
-
-            star_prefix = "★ " if is_fav else ""
-            display_name = f"{star_prefix}{alias} [{fam}]" if alias else f"{star_prefix}{fam}"
-
-            self.font_combo.addItem(display_name, fam)
-            idx = self.font_combo.count() - 1
-            self.font_combo.setItemData(idx, QFont(fam, 10), Qt.FontRole)
-            if fam == current_fam:
-                selected_idx = idx
-
-        if self.font_combo.count() > 0:
-            self.font_combo.setCurrentIndex(selected_idx)
-            active_fam = self.font_combo.currentData(Qt.UserRole)
-            if active_fam:
-                self.canvas.default_font_family = active_fam
-                self.last_selected_font = active_fam
-        self.font_combo.blockSignals(False)
-        self.update_font_fav_button_visual()
-
-    def update_font_fav_button_visual(self):
-        fam = self.get_selected_font_family()
-        is_fav = fam in self.favorite_fonts
-        self.btn_fav_font.setText("★" if is_fav else "☆")
-        self.btn_fav_font.setStyleSheet(
-            f"color: {Config.COLOR_ACCENT}; font-weight: bold;" if is_fav else ""
-        )
-
-    def on_font_combo_selected(self):
-        fam = self.get_selected_font_family()
-        if fam:
-            self.last_selected_font = fam
-            self.save_font_prefs()
-        self.update_font_fav_button_visual()
-        self.on_text_style_ui_changed()
-
-    def toggle_current_font_favorite(self):
-        fam = self.get_selected_font_family()
-        if not fam:
-            return
-        if fam in self.favorite_fonts:
-            self.favorite_fonts.remove(fam)
-        else:
-            self.favorite_fonts.add(fam)
-        self.save_font_prefs()
-        self.populate_font_combo()
-
-    def rename_current_font_alias(self):
-        fam = self.get_selected_font_family()
-        if not fam:
-            return
-        current_alias = self.font_aliases.get(fam, "")
-        new_alias, ok = QInputDialog.getText(
-            self,
-            tr("main.rename_alias_font"),
-            tr("main.enter_custom_alias_for_fam_leave", fam=fam),
-            QLineEdit.Normal,
-            current_alias
-        )
-        if ok:
-            clean_alias = new_alias.strip()
-            if clean_alias:
-                self.font_aliases[fam] = clean_alias
-            elif fam in self.font_aliases:
-                del self.font_aliases[fam]
-            self.save_font_prefs()
-            self.populate_font_combo()
 
     #/////////////////////////////////#
     #    CATEGORY & TOOL SWITCHING    #
     #/////////////////////////////////#
 
     def set_category(self, category: str):
+        """Switch the active workspace and initialize deferred panels when needed."""
         self.current_category = category
         self.cat_lbl.setText(tr("main.category_category", category=tr_label(category)))
 
@@ -729,18 +428,33 @@ class MainWindow(QMainWindow):
             self.set_tool(target_tool, switch_category=False)
 
         elif category == "TYPESETTER":
+            # Font enumeration and combo population can be expensive on systems
+            # with many installed fonts, so do this only when needed.
+            if self.typesetter_panel.all_system_fonts is None:
+                self.typesetter_panel.populate_font_combo()
             self.category_stack.setCurrentIndex(1)
             self.set_tool("TEXT", switch_category=False)
 
         elif category == "STITCHER":
+            if self.stitcher_page is None:
+                from src.backend.stitcher import StitcherPanel
+
+                self.stitcher_page = StitcherPanel(self)
+                self.stitcher_layout.addWidget(self.stitcher_page)
             self.category_stack.setCurrentIndex(2)
             self.set_tool("NONE", switch_category=False)
 
         elif category == "TRANSLATOR":
+            if self.translator_page is None:
+                from src.backend.translator import TranslatorPanel
+
+                self.translator_page = TranslatorPanel(self)
+                self.translator_layout.addWidget(self.translator_page)
             self.category_stack.setCurrentIndex(3)
             self.set_tool("TEXT", switch_category=False)
 
     def set_tool(self, tool, switch_category=True):
+        """Activate a canvas tool and synchronize its visual and category state."""
         if switch_category:
             if tool == "TEXT" and self.current_category not in ("TYPESETTER", "TRANSLATOR"):
                 self.set_category("TYPESETTER")
@@ -762,7 +476,7 @@ class MainWindow(QMainWindow):
 
         self.canvas.current_tool = tool
 
-        for grp in (self.tools, self.type_tools):
+        for grp in (self.tools, self.typesetter_panel.type_tools):
             for btn in grp.buttons.values():
                 btn.setAutoExclusive(False)
                 btn.setChecked(False)
@@ -785,7 +499,7 @@ class MainWindow(QMainWindow):
             if self.current_category == "CLEANER":
                 self.tools.buttons["MOVE"].setChecked(True)
             elif self.current_category == "TYPESETTER":
-                self.type_tools.buttons["MOVE"].setChecked(True)
+                self.typesetter_panel.type_tools.buttons["MOVE"].setChecked(True)
             self.mode_lbl.setText(tr("main.mode_moving"))
             self.mode_lbl.setStyleSheet("color: #888888; font-weight: bold;")
             
@@ -812,7 +526,7 @@ class MainWindow(QMainWindow):
                 self.canvas.cursor_item.hide()
             
             if tool == "TEXT":
-                self.type_tools.buttons["TEXT"].setChecked(True)
+                self.typesetter_panel.type_tools.buttons["TEXT"].setChecked(True)
             elif tool in ("PAINT", "PICKER"):
                 self.tools.buttons["MANUAL"].setChecked(True)
             elif tool in self.tools.buttons:
@@ -839,10 +553,12 @@ class MainWindow(QMainWindow):
 
     # --- MANUAL CLEANER HANDLERS ---
     def on_manual_image_patch(self, x, y, old_patch):
+        """Record a manual image edit in history and mark the current page as modified."""
         self.history.push_image_action(x, y, old_patch)
         self.mark_current_modified()
 
     def on_clean_color_picked(self, color: QColor):
+        """Apply a color selected from the canvas to the manual-clean brush."""
         self.canvas.manual_clean_color = QColor(color)
         self.swatch_manual_clean.set_color(color)
         self.canvas.update_cursor_visuals()
@@ -850,225 +566,27 @@ class MainWindow(QMainWindow):
             self.set_tool("PAINT", switch_category=False)
 
     def choose_manual_clean_color(self):
+        """Open a color picker for the manual-clean brush."""
         c = QColorDialog.getColor(self.canvas.manual_clean_color, self, tr("main.select_manual_cleaner_brush_color"))
         if c.isValid():
             self.on_clean_color_picked(c)
 
-    # --- TEXT UI HANDLERS ---
+    # --- TYPESETTER COMPATIBILITY DELEGATES ---
     def _run_if_not_typing(self, func):
+        """Run a shortcut action only when the canvas is not editing text."""
         if not self.canvas.is_editing_text():
             func()
 
-    def update_color_swatches(self):
-        self.swatch_text_color.set_color(self.canvas.default_text_color)
-        self.swatch_stroke_color.set_color(self.canvas.default_stroke_color)
-
-    def on_stroke_mode_toggled(self, enabled: bool):
-        self.btn_stroke_mode.setText(tr("main.mode_stroke_outside") if enabled else tr("main.mode_normal_no_stroke"))
-        self.stroke_settings_frame.setVisible(enabled)
-        self.on_text_style_ui_changed()
-
     def refresh_page_text_list(self):
-        self.text_layer_list.blockSignals(True)
-        self.text_layer_list.clear()
-        placed_count = len(self.canvas.text_items)
-        pending_count = len(self.canvas.pending_texts)
-        self.lbl_text_layers.setText(tr("main.page_text_layers_placed_count_placed", placed_count=placed_count, pending_count=pending_count))
-
-        # Keep single source of truth synced with active canvas
-        if self.current_img_path:
-            self.pending_page_texts[self.current_img_path] = list(self.canvas.pending_texts)
-
-        # 1. Show Placed Canvas Text Items first ([ ✓ ])
-        for idx, item in enumerate(self.canvas.text_items, start=1):
-            preview = item.toPlainText().replace("\n", " ").strip() or "<Empty>"
-            if len(preview) > 22:
-                preview = preview[:22] + "..."
-            list_item = QListWidgetItem(f"[ ✓ ] {idx}. {preview}")
-            list_item.setData(Qt.UserRole, ("PLACED", item))
-            self.text_layer_list.addItem(list_item)
-            if item.isSelected():
-                list_item.setSelected(True)
-
-        # 2. Show Pending Queued Script Lines below ([ + ] click to spawn with active font!)
-        for p_idx, text_str in enumerate(self.canvas.pending_texts):
-            preview = text_str.replace("\n", " ").strip()
-            if len(preview) > 22:
-                preview = preview[:22] + "..."
-            list_item = QListWidgetItem(f"[ + ] {preview}")
-            list_item.setForeground(QColor(Config.COLOR_ACCENT))
-            list_item.setToolTip(tr("main.click_to_place_on_canvas_with", text_str=text_str))
-            list_item.setData(Qt.UserRole, ("PENDING", p_idx))
-            self.text_layer_list.addItem(list_item)
-
-        self.text_layer_list.blockSignals(False)
-        if hasattr(self, "translator_page"):
-            self.translator_page.refresh_active_page_preview()
+        """Delegate text-layer list refreshes to the Typesetter panel."""
+        if hasattr(self, "typesetter_panel"):
+            self.typesetter_panel.refresh_page_text_list()
 
     def spawn_pending_text_by_index(self, p_idx: int):
-        """Unified helper to spawn a queued script line onto the canvas and pop it from pending_texts."""
-        if self.canvas.cv_img is None or self.canvas.is_locked:
-            return
-        if 0 <= p_idx < len(self.canvas.pending_texts):
-            text_str = self.canvas.pending_texts.pop(p_idx)
-            if self.current_img_path:
-                self.pending_page_texts[self.current_img_path] = list(self.canvas.pending_texts)
-            if self.canvas.current_tool == "NONE":
-                self.set_tool("TEXT", switch_category=False)
-            center_pt = self.canvas.mapToScene(self.canvas.viewport().rect().center())
-            item = self.canvas.add_text_item(center_pt, initial_text=text_str, enter_edit=False)
-            item.from_script_queue = True
-            self.mark_current_modified()
-            self.refresh_page_text_list()
-
-    def on_text_layer_item_clicked(self, list_item):
-        data = list_item.data(Qt.UserRole)
-        if not isinstance(data, tuple):
-            return
-
-        kind, payload = data
-        if kind == "PLACED":
-            target_item = payload
-            if isinstance(target_item, MangaTextItem) and target_item in self.canvas.text_items:
-                if self.canvas.current_tool == "NONE":
-                    self.set_tool("TEXT", switch_category=False)
-                self.canvas.scene.clearSelection()
-                target_item.setSelected(True)
-                self.canvas.centerOn(target_item)
-                self.sync_text_ui_from_item(target_item)
-
-        elif kind == "PENDING":
-            self.spawn_pending_text_by_index(int(payload))
-
-    def on_clear_all_page_texts(self):
-        """Clears only placed text boxes on the canvas (returns script-spawned ones to queue, never wipes pending queue)."""
-        if not self.canvas.text_items:
-            return
-        self.canvas.clear_placed_texts_only(return_script_items_to_queue=True)
-        if self.current_img_path:
-            self.pending_page_texts[self.current_img_path] = list(self.canvas.pending_texts)
-        self.mark_current_modified()
-        self.refresh_page_text_list()
-
-    def sync_text_ui_from_item(self, item: MangaTextItem):
-        self.font_combo.blockSignals(True)
-        self.font_size_spin.blockSignals(True)
-        self.btn_bold.blockSignals(True)
-        self.btn_italic.blockSignals(True)
-        self.btn_center.blockSignals(True)
-        self.btn_stroke_mode.blockSignals(True)
-        self.stroke_spin.blockSignals(True)
-        self.stroke_op_spin.blockSignals(True)
-        self.rot_spin.blockSignals(True)
-
-        idx = self.font_combo.findData(item.font_family, Qt.UserRole)
-        if idx >= 0:
-            self.font_combo.setCurrentIndex(idx)
-        self.update_font_fav_button_visual()
-
-        self.font_size_spin.setValue(int(item.font_size))
-        self.btn_bold.setChecked(item.is_bold)
-        self.btn_italic.setChecked(item.is_italic)
-        self.btn_center.setChecked(item.align_center)
-        self.btn_stroke_mode.setChecked(item.stroke_enabled)
-        self.btn_stroke_mode.setText(tr("main.mode_stroke_outside") if item.stroke_enabled else tr("main.mode_normal_no_stroke"))
-        self.stroke_settings_frame.setVisible(item.stroke_enabled)
-        self.stroke_spin.setValue(max(1, int(item.stroke_width)))
-        self.stroke_op_spin.setValue(int(item.stroke_opacity))
-        self.rot_spin.setValue(int(round(item.rotation())))
-        self.canvas.default_text_color = QColor(item.text_color)
-        self.canvas.default_stroke_color = QColor(item.stroke_color)
-        self.update_color_swatches()
-
-        self.font_combo.blockSignals(False)
-        self.font_size_spin.blockSignals(False)
-        self.btn_bold.blockSignals(False)
-        self.btn_italic.blockSignals(False)
-        self.btn_center.blockSignals(False)
-        self.btn_stroke_mode.blockSignals(False)
-        self.stroke_spin.blockSignals(False)
-        self.stroke_op_spin.blockSignals(False)
-        self.rot_spin.blockSignals(False)
-        self.refresh_page_text_list()
-
-    def on_text_rotation_ui_changed(self, val):
-        for it in self.canvas.scene.selectedItems():
-            if isinstance(it, MangaTextItem):
-                it.set_rotation_angle(float(val))
-
-    def on_reset_box_width(self):
-        for it in self.canvas.scene.selectedItems():
-            if isinstance(it, MangaTextItem):
-                it.reset_box_width()
-
-    def on_text_style_ui_changed(self):
-        fam = self.get_selected_font_family()
-        sz = self.font_size_spin.value()
-        bold = self.btn_bold.isChecked()
-        italic = self.btn_italic.isChecked()
-        center = self.btn_center.isChecked()
-        st_en = self.btn_stroke_mode.isChecked()
-        st_w = self.stroke_spin.value()
-        st_op = self.stroke_op_spin.value()
-
-        self.canvas.default_font_family = fam
-        self.canvas.default_font_size = sz
-        self.canvas.default_bold = bold
-        self.canvas.default_italic = italic
-        self.canvas.default_align_center = center
-        self.canvas.default_stroke_enabled = st_en
-        self.canvas.default_stroke_width = st_w
-        self.canvas.default_stroke_opacity = st_op
-
-        for it in self.canvas.scene.selectedItems():
-            if isinstance(it, MangaTextItem):
-                it.font_family = fam
-                it.font_size = sz
-                it.is_bold = bold
-                it.is_italic = italic
-                it.align_center = center
-                it.stroke_enabled = st_en
-                it.stroke_width = st_w
-                it.stroke_opacity = st_op
-                it.update_style()
-                self.mark_current_modified()
-
-    def swap_text_and_stroke_colors(self):
-        self.canvas.default_text_color, self.canvas.default_stroke_color = (
-            QColor(self.canvas.default_stroke_color),
-            QColor(self.canvas.default_text_color),
-        )
-        self.update_color_swatches()
-        for it in self.canvas.scene.selectedItems():
-            if isinstance(it, MangaTextItem):
-                it.text_color = QColor(self.canvas.default_text_color)
-                it.stroke_color = QColor(self.canvas.default_stroke_color)
-                it.update_style()
-                self.mark_current_modified()
-
-    def choose_text_color(self):
-        c = QColorDialog.getColor(self.canvas.default_text_color, self, tr("main.select_text_fill_color"))
-        if c.isValid():
-            self.canvas.default_text_color = c
-            self.update_color_swatches()
-            for it in self.canvas.scene.selectedItems():
-                if isinstance(it, MangaTextItem):
-                    it.text_color = c
-                    it.update_style()
-                    self.mark_current_modified()
-
-    def choose_stroke_color(self):
-        c = QColorDialog.getColor(self.canvas.default_stroke_color, self, tr("main.select_outer_stroke_color"))
-        if c.isValid():
-            self.canvas.default_stroke_color = c
-            self.update_color_swatches()
-            for it in self.canvas.scene.selectedItems():
-                if isinstance(it, MangaTextItem):
-                    it.stroke_color = c
-                    it.update_style()
-                    self.mark_current_modified()
-
+        """Delegate queued dialogue placement to the Typesetter panel."""
+        self.typesetter_panel.spawn_pending_text_by_index(p_idx)
     def setup_shortcuts(self):
+        """Register keyboard shortcuts for tools, scans, cleanup, and history."""
         QShortcut(QKeySequence("B"), self).activated.connect(lambda: self._run_if_not_typing(lambda: self.set_tool("BRUSH")))
         QShortcut(QKeySequence("E"), self).activated.connect(lambda: self._run_if_not_typing(lambda: self.set_tool("ERASER")))
         QShortcut(QKeySequence("R"), self).activated.connect(lambda: self._run_if_not_typing(lambda: self.set_tool("RECT")))
@@ -1091,6 +609,7 @@ class MainWindow(QMainWindow):
         QShortcut(QKeySequence("Ctrl+Shift+Z"), self).activated.connect(lambda: self._run_if_not_typing(self.on_smart_ctrl_shift_z))
 
     def keyPressEvent(self, event):
+        """Handle window-level key presses that modify canvas interaction state."""
         if self.canvas.is_editing_text():
             super().keyPressEvent(event)
             return
@@ -1112,6 +631,7 @@ class MainWindow(QMainWindow):
         super().keyPressEvent(event)
 
     def keyReleaseEvent(self, event):
+        """Restore interaction state when temporary modifier keys are released."""
         if self.canvas.is_editing_text():
             super().keyReleaseEvent(event)
             return
@@ -1135,6 +655,7 @@ class MainWindow(QMainWindow):
         super().keyReleaseEvent(event)
 
     def toggle_all_files(self, checked):
+        """Select or clear all entries in the project file list."""
         state = Qt.Checked if checked else Qt.Unchecked
         for i in range(self.file_list.count()):
             self.file_list.item(i).setCheckState(state)
@@ -1144,18 +665,21 @@ class MainWindow(QMainWindow):
     #/////////////////////////////////#
 
     def on_smart_ctrl_z(self):
+        """Route Ctrl+Z to text editing or image history as appropriate."""
         if self.canvas.current_tool in ("PAINT", "PICKER"):
             self.on_undo_image()
         else:
             self.on_undo_mask()
 
     def on_smart_ctrl_shift_z(self):
+        """Route Ctrl+Shift+Z to text editing or image redo as appropriate."""
         if self.canvas.current_tool in ("PAINT", "PICKER"):
             self.on_redo_image()
         else:
             self.on_redo_mask()
 
     def on_undo_image(self):
+        """Undo the most recent image or mask operation."""
         if self.canvas.is_locked: return
         res = self.history.pop_image_undo(self.canvas.cv_img)
         if res:
@@ -1165,6 +689,7 @@ class MainWindow(QMainWindow):
             self.canvas.refresh_image_pixmap()
 
     def on_redo_image(self):
+        """Redo the most recently undone image or mask operation."""
         if self.canvas.is_locked: return
         res = self.history.pop_image_redo(self.canvas.cv_img)
         if res:
@@ -1174,6 +699,7 @@ class MainWindow(QMainWindow):
             self.canvas.refresh_image_pixmap()
 
     def on_undo_mask(self):
+        """Restore the previous canvas mask from history."""
         if self.canvas.is_locked: return
         res = self.history.pop_mask_undo(self.canvas.mask)
         if res:
@@ -1182,6 +708,7 @@ class MainWindow(QMainWindow):
             self.canvas.update_mask_display()
 
     def on_redo_mask(self):
+        """Reapply the next canvas mask state from history."""
         if self.canvas.is_locked: return
         res = self.history.pop_mask_redo(self.canvas.mask)
         if res:
@@ -1194,6 +721,7 @@ class MainWindow(QMainWindow):
     #/////////////////////////////////#
 
     def _check_lock_state(self):
+        """Update canvas controls and cursor behavior for the current lock state."""
         locked_paths = set()
         
         if self.worker_thread is not None and hasattr(self, 'worker'):
@@ -1219,6 +747,7 @@ class MainWindow(QMainWindow):
             self.canvas.set_locked(False)
 
     def _update_queue_ui(self):
+        """Refresh labels and progress indicators for queued processing tasks."""
         pending = self.total_lama_tasks - self.completed_lama_tasks
         self.queue_lbl.setText(tr("main.processing_queued_pending", pending=pending))
 
@@ -1234,12 +763,14 @@ class MainWindow(QMainWindow):
         self._check_lock_state()
 
     def on_worker_progress(self, val):
+        """Display progress reported by the active background worker."""
         if self.worker.task != "clean" or self.total_lama_tasks == 0: return
         base_progress = (self.completed_lama_tasks / self.total_lama_tasks) * 100
         task_fraction = (val / 100.0) * (100 / self.total_lama_tasks)
         self.progress_bar.setValue(int(base_progress + task_fraction))
 
     def enqueue_task(self, task, path, *args):
+        """Add a processing request to the queue and start queue execution if idle."""
         self.task_queue.append({
             "task": task,
             "path": path,
@@ -1249,6 +780,7 @@ class MainWindow(QMainWindow):
         self._process_queue()
 
     def _process_queue(self):
+        """Create and launch a worker for the next queued task."""
         if self.worker_thread is not None:
             return
 
@@ -1264,6 +796,8 @@ class MainWindow(QMainWindow):
 
         self.setCursor(Qt.WaitCursor)
         self.worker_thread = QThread()
+        from src.backend.workers import AIWorker
+
         self.worker = AIWorker(item["task"], item["args"])
         self.worker.source_path = source_path
 
@@ -1279,6 +813,7 @@ class MainWindow(QMainWindow):
         self._update_queue_ui() 
 
     def stop_thread(self):
+        """Request cancellation and safely release the active worker thread."""
         self.setCursor(Qt.ArrowCursor)
         if self.worker_thread:
             self.worker_thread.quit()
@@ -1287,7 +822,11 @@ class MainWindow(QMainWindow):
         self._update_queue_ui()
 
     def on_task_error(self, message):
+        """Report a worker failure and advance or stop queued processing."""
         source_path = getattr(self.worker, 'source_path', None)
+        task = getattr(self.worker, "task", None)
+        task_args = getattr(self.worker, "args", None)
+        was_batching = self.is_batching
         if source_path:
             self.page_states[source_path] = PageState.ERROR
             self.file_list.update_item_state(source_path, "error")
@@ -1298,9 +837,24 @@ class MainWindow(QMainWindow):
         self.total_lama_tasks = 0
         self.completed_lama_tasks = 0
         self._update_queue_ui()
+
+        required_model = {"ocr": "ocr", "clean": "lama"}.get(task)
+        if required_model and not ModelManager.is_available(required_model):
+            if self.ensure_model_available(required_model):
+                if was_batching:
+                    QMessageBox.information(
+                        self,
+                        tr("models.download_complete_title"),
+                        tr("models.retry_batch_after_download"),
+                    )
+                else:
+                    self.enqueue_task(task, source_path, *(task_args or ()))
+            return
+
         QMessageBox.critical(self, tr("main.hardware_error"), message)
 
     def _get_final_img_for_path(self, path):
+        """Return the latest processed image associated with a source path."""
         is_active = (path == self.current_img_path)
         if is_active:
             return self.canvas.get_composited_image()
@@ -1308,6 +862,7 @@ class MainWindow(QMainWindow):
         return MangaCanvas.render_texts_onto_cv_img(session.get("img"), session.get("texts", []))
 
     def on_task_finished(self, result, patches):
+        """Apply worker results to the project and continue queued work."""
         task = self.worker.task  
         source_path = getattr(self.worker, 'source_path', self.current_img_path)
         is_active = (source_path == self.current_img_path)
@@ -1359,16 +914,21 @@ class MainWindow(QMainWindow):
         self._process_queue()
 
     def on_ocr_scan(self):
+        """Queue OCR detection for the active page without cleaning its mask."""
         if self.canvas.cv_img is None or self.canvas.is_locked: return
+        if not self.ensure_model_available("ocr"):
+            return
         self.mark_current_modified()
         self.enqueue_task("ocr", self.current_img_path, self.canvas.cv_img.copy())
 
     def on_transparency_scan(self):
+        """Queue transparency detection for the active page."""
         if self.canvas.cv_img is None or not self.current_img_path or self.canvas.is_locked: return
         self.mark_current_modified()
         self.enqueue_task("transparency", self.current_img_path, self.canvas.cv_img.copy())
 
     def on_lama_clean(self):
+        """Queue LaMa cleanup using the current mask."""
         if self.canvas.cv_img is None or self.canvas.is_locked: return
         ptr = self.canvas.mask.bits()
         mask_np = np.frombuffer(ptr, np.uint8).reshape((self.canvas.mask.height(), self.canvas.mask.width(), 4))
@@ -1381,6 +941,9 @@ class MainWindow(QMainWindow):
                 else: self.step_batch()
             else:
                 QMessageBox.information(self, tr("main.nothing_selected"), tr("main.no_mask_area_detected"))
+            return
+
+        if not self.ensure_model_available("lama"):
             return
 
         self.total_lama_tasks += 1
@@ -1422,6 +985,7 @@ class MainWindow(QMainWindow):
         return ans == QMessageBox.Yes
 
     def on_start_batch(self):
+        """Collect batch settings and initialize the batch-processing sequence."""
         if self.file_list.count() == 0: return
 
         dialog = BatchSetupDialog(self)
@@ -1447,6 +1011,10 @@ class MainWindow(QMainWindow):
         if not self._confirm_unplaced_texts(paths):
             return
 
+        required_model = {"Mask": "lama", "OCR Scan": "ocr"}.get(scan_choice)
+        if required_model and not self.ensure_model_available(required_model):
+            return
+
         self.batch_engine.initialize_batch(paths, fmt)
         self.is_batching = True
         if self.batch_scan_type == "mask":
@@ -1455,6 +1023,7 @@ class MainWindow(QMainWindow):
         self._check_lock_state()
 
     def step_batch(self):
+        """Process the next page in the active batch."""
         path = self.batch_engine.get_next()
         if path:
             if path not in self.image_sessions:
@@ -1513,13 +1082,18 @@ class MainWindow(QMainWindow):
                 self.enqueue_task(self.batch_scan_type, path, img_cv.copy())
 
     def finalize_batch(self):
+        """Finish batch processing and update the project with its results."""
         self.is_batching = False
         self._check_lock_state()
         
         self.setCursor(Qt.WaitCursor)
         if self.batch_engine.export_format == "photoshop":
+            from src.backend.photoshop import PhotoshopBridge
+
             PhotoshopBridge.open_batch_in_ps(self.batch_engine.files, self.batch_engine.output_dir)
         elif self.batch_engine.export_format == "photopea":
+            from src.backend.photopea import PhotopeaBridge
+
             PhotopeaBridge.open_batch_in_photopea(self.batch_engine.files, self.batch_engine.output_dir)
         self.setCursor(Qt.ArrowCursor)
             
@@ -1533,6 +1107,7 @@ class MainWindow(QMainWindow):
     #/////////////////////////////////#
 
     def on_open_folder(self):
+        """Choose an image folder and load its files into the project."""
         p = QFileDialog.getExistingDirectory(self, tr("main.select_folder"))
         if p:
             self.image_sessions.clear()
@@ -1547,18 +1122,20 @@ class MainWindow(QMainWindow):
                     full_path = os.path.join(p, f)
                     self.page_states[full_path] = PageState.UNMODIFIED
                     self.file_list.add_file(full_path)
-            if hasattr(self, "stitcher_page"):
+            if self.stitcher_page is not None:
                 self.stitcher_page.clear_blocks()
-            if hasattr(self, "translator_page"):
+            if self.translator_page is not None:
                 self.translator_page.refresh_active_page_preview()
 
     def mark_current_modified(self):
+        """Mark the active page as modified and update its project status."""
         if self.current_img_path:
             if self.page_states.get(self.current_img_path) != PageState.MODIFIED:
                 self.page_states[self.current_img_path] = PageState.MODIFIED
                 self.file_list.update_item_state(self.current_img_path, "modified")
 
     def on_file_clicked(self, it):
+        """Load the selected project image and restore its page-specific state."""
         path_real = it.data(Qt.UserRole)
         if path_real == self.current_img_path: return 
 
@@ -1613,10 +1190,11 @@ class MainWindow(QMainWindow):
                 logger.error(f"Failed to decode image: {path_real}")
                 
         self._check_lock_state()
-        if hasattr(self, "translator_page"):
+        if self.translator_page is not None:
             self.translator_page.refresh_active_page_preview()
 
     def on_export(self, fmt):
+        """Export the active page in the selected image format."""
         if self.canvas.cv_img is None: return
         if self.current_img_path and not self._confirm_unplaced_texts([self.current_img_path]):
             return
@@ -1639,6 +1217,7 @@ class MainWindow(QMainWindow):
                 im_buf_arr.tofile(path)
 
     def on_editor_bridge(self, target="photoshop"):
+        """Send the current page to the selected external editor."""
         if self.canvas.cv_img is None or not self.current_img_path: return
         if not self._confirm_unplaced_texts([self.current_img_path]):
             return
@@ -1655,8 +1234,12 @@ class MainWindow(QMainWindow):
             composited = self.canvas.get_composited_image()
             self.setCursor(Qt.WaitCursor)
             if target == "photoshop":
+                from src.backend.photoshop import PhotoshopBridge
+
                 res = PhotoshopBridge.send_to_ps(orig, composited)
             elif target == "photopea":
+                from src.backend.photopea import PhotopeaBridge
+
                 res = PhotopeaBridge.send_to_photopea(orig, composited, self.current_img_path)
             self.setCursor(Qt.ArrowCursor)
 
@@ -1665,11 +1248,13 @@ class MainWindow(QMainWindow):
                 QMessageBox.warning(self, tr("main.editor_error"), tr("main.could_not_send_to_capitalize_res", capitalize=target.capitalize(), res=res))
 
     def update_telemetry(self):
+        """Refresh system usage and memory telemetry in the navigation bar."""
         ram, gpu = self.monitor.get_stats()
         self.hw_mon.lbl.setText(tr("main.choice_ram_ram_mb", choice='GPU' if gpu else 'CPU', ram=ram))
         self.hw_mon.bar.setValue(min(ram // 40, 100))
 
     def on_language_selected(self, language_code, selected_name):
+        """Save a language preference and explain that it applies after restart."""
         saved_language = i18n.get_saved_language() or "auto"
         if saved_language == language_code:
             return
@@ -1694,38 +1279,3 @@ class MainWindow(QMainWindow):
                 active=active_language,
             ),
         )
-
-#/////////////////////////////////#
-#     BATCH SETUP DIALOG MODAL    #
-#/////////////////////////////////#
-
-class BatchSetupDialog(QDialog):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle(tr("main.batch_setup"))
-        self.setStyleSheet(f"background-color: {Config.COLOR_PANEL}; color: {Config.COLOR_TEXT};")
-
-        self.scan_mode = QComboBox()
-        for _id, _key in (("none", "main.none"), ("Mask", "main.mask_cleanup"),
-                          ("OCR Scan", "main.ocr_scan"), ("Transparency Scan", "main.transparency_scan")):
-            self.scan_mode.addItem(tr(_key), _id)
-        self.scan_mode.setStyleSheet(f"background-color: {Config.COLOR_BG}; border: 1px solid #2a2a32; padding: 4px;")
-
-        self.export_fmt = QComboBox()
-        for _id, _key in (("none", "main.none"), ("png", "main.png"), ("jpg", "main.jpg"),
-                          ("photoshop", "main.photoshop"), ("photopea", "main.photopea")):
-            self.export_fmt.addItem(tr(_key), _id)
-        self.export_fmt.setStyleSheet(f"background-color: {Config.COLOR_BG}; border: 1px solid #2a2a32; padding: 4px;")
-
-        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        buttons.accepted.connect(self.accept)
-        buttons.rejected.connect(self.reject)
-        buttons.setStyleSheet(f"QPushButton {{ background-color: {Config.COLOR_BG}; border: 1px solid #2a2a32; padding: 6px; }}")
-
-        layout = QFormLayout(self)
-        layout.addRow(tr("main.processing_mode"), self.scan_mode)
-        layout.addRow(tr("main.export_format"), self.export_fmt)
-        layout.addWidget(buttons)
-
-    def get_results(self):
-        return self.scan_mode.currentData(), self.export_fmt.currentData()

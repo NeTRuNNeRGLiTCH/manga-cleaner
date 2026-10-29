@@ -281,7 +281,16 @@ class MangaTextItem(QGraphicsTextItem):
                 views = self.scene().views() if self.scene() else []
                 if (views and getattr(views[0], "current_tool", "") == "TEXT" 
                         and getattr(views[0], "show_text_guides", True)):
-                    guide_pen = QPen(QColor(0, 212, 255, 110), 1.0, Qt.DotLine)
+                    # The dark underlay preserves contrast on bright artwork;
+                    # the vivid cyan dash stays visible on dark artwork.
+                    outline_pen = QPen(QColor(8, 12, 20, 235), 3.5, Qt.SolidLine)
+                    outline_pen.setCosmetic(True)
+                    painter.setPen(outline_pen)
+                    painter.setBrush(Qt.NoBrush)
+                    painter.drawRect(r)
+
+                    guide_pen = QPen(QColor(0, 212, 255, 255), 1.8, Qt.DashLine)
+                    guide_pen.setCosmetic(True)
                     painter.setPen(guide_pen)
                     painter.setBrush(Qt.NoBrush)
                     painter.drawRect(r)

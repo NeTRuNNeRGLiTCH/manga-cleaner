@@ -194,21 +194,26 @@ class StitcherPanel(QWidget):
 
         row_from = QHBoxLayout()
         lbl_from = QLabel(tr("stitcher.from"))
-        lbl_from.setFixedWidth(36)
         lbl_from.setStyleSheet(f"color: {Config.COLOR_TEXT_DIM}; font-size: 10px;")
         self.combo_from = QComboBox()
+        self.combo_from.setMaxVisibleItems(12)
         self.combo_from.setStyleSheet(f"background: {Config.COLOR_BG}; border: 1px solid #2a2a32; padding: 3px; font-size: 11px;")
         row_from.addWidget(lbl_from)
         row_from.addWidget(self.combo_from, 1)
 
         row_to = QHBoxLayout()
         lbl_to = QLabel(tr("stitcher.to"))
-        lbl_to.setFixedWidth(36)
         lbl_to.setStyleSheet(f"color: {Config.COLOR_TEXT_DIM}; font-size: 10px;")
         self.combo_to = QComboBox()
+        self.combo_to.setMaxVisibleItems(12)
         self.combo_to.setStyleSheet(f"background: {Config.COLOR_BG}; border: 1px solid #2a2a32; padding: 3px; font-size: 11px;")
         row_to.addWidget(lbl_to)
         row_to.addWidget(self.combo_to, 1)
+
+        # Keep the localized range labels aligned without clipping longer translations.
+        range_label_width = max(lbl_from.sizeHint().width(), lbl_to.sizeHint().width()) + 6
+        lbl_from.setFixedWidth(range_label_width)
+        lbl_to.setFixedWidth(range_label_width)
 
         m_lay.addLayout(row_from)
         m_lay.addLayout(row_to)
