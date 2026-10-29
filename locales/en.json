@@ -74,6 +74,8 @@
   "main.app_name_v_version": "{app_name} v{version}",
   "main.b": "B",
   "main.batch_complete": "Batch Complete",
+  "main.batch_save_failed_title": "Batch export failed",
+  "main.batch_save_failed": "The batch output could not be written. Processing has been stopped.\n\n{error}",
   "main.batch_setup": "Batch Setup",
   "main.brush_size": "BRUSH SIZE",
   "main.category_category": "CATEGORY: {category}",

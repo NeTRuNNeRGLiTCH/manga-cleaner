@@ -73,6 +73,8 @@
   "main.app_name_v_version": "{app_name} v{version}",
   "main.b": "B",
   "main.batch_complete": "バッチ処理完了",
+  "main.batch_save_failed_title": "バッチのエクスポートに失敗しました",
+  "main.batch_save_failed": "バッチ出力を書き込めなかったため、処理を停止しました。\n\n{error}",
   "main.batch_setup": "バッチ設定",
   "main.brush_size": "ブラシサイズ",
   "main.category_category": "カテゴリー: {category}",
@@ -298,5 +300,5 @@
   "main.language_setting_error": "言語設定エラー",
   "main.language_save_failed": "言語設定を保存できませんでした。アプリケーションの設定フォルダーへの書き込み権限を確認してください。",
   "meta.translation_status": "Verified and approved for use in Manga Cleaner Studio",
-  "meta.translation_source_sha256": "cf67c04a3919973fed7ece544a31223ede85bdf3ec6d06f28e84dd792b4334f8"
+  "meta.translation_source_sha256": "8df38ab668bc21a5b75c0e22fb59b9ad7b4f0a26ee0736e7ca1f56516acad7f8"
 }

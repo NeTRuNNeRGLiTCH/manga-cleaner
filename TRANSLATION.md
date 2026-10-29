@@ -153,6 +153,15 @@ python tools/check_locales.py --release
 
 The validator checks JSON structure, source-key coverage, unexpected keys, empty values, named placeholder consistency, language metadata, verification markers, and source/catalog fingerprints. It can copy missing English source values into a target catalog, but it does not machine-translate those values or judge translation quality. Treat approval as a structural check, then review translated wording separately. Editing `en.json` changes its source fingerprint and makes all secondary approvals stale until they are rechecked. Running `--approve` with no file arguments processes all locale catalogs; this is the recommended workflow after changing English strings.
 
+After adding or changing keys in `locales/en.json`, refresh every secondary catalog approval and then validate the full set before packaging:
+
+```bash
+python tools/check_locales.py --approve
+python tools/check_locales.py --release
+```
+
+The first command interactively checks all locale catalogs, offers to copy missing English source values where needed, and updates their approval fingerprints. Review any affected translations separately: approval verifies catalog structure and placeholders, not translation quality. The second command confirms that every catalog is complete and approved against the current English source. Do not package or release if it reports errors.
+
 `tools/extract_strings.py` scans known UI text call sites and updates the English catalog and reports. Its output is a review aid: inspect the generated diff and report because static extraction can miss strings or misclassify text used by application logic.
 
 `tools/migrate_to_tr.py` helps convert existing hard-coded UI text to localization calls. Run it first without `--apply` and inspect `MIGRATION_REPORT.md`; use `--apply` only after reviewing the proposed changes. It is primarily a migration tool, not the normal way to write new features.

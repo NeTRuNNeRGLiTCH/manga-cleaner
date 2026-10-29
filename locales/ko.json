@@ -73,6 +73,8 @@
   "main.app_name_v_version": "{app_name} v{version}",
   "main.b": "B",
   "main.batch_complete": "배치 완료",
+  "main.batch_save_failed_title": "일괄 내보내기 실패",
+  "main.batch_save_failed": "일괄 처리 결과를 기록하지 못해 처리를 중지했습니다.\n\n{error}",
   "main.batch_setup": "배치 설정",
   "main.brush_size": "브러시 크기",
   "main.category_category": "카테고리: {category}",
@@ -298,5 +300,5 @@
   "main.language_setting_error": "언어 설정 오류",
   "main.language_save_failed": "언어 설정을 저장할 수 없습니다. 애플리케이션의 설정 폴더에 쓰기 권한이 있는지 확인하세요.",
   "meta.translation_status": "Verified and approved for use in Manga Cleaner Studio",
-  "meta.translation_source_sha256": "cf67c04a3919973fed7ece544a31223ede85bdf3ec6d06f28e84dd792b4334f8"
+  "meta.translation_source_sha256": "8df38ab668bc21a5b75c0e22fb59b9ad7b4f0a26ee0736e7ca1f56516acad7f8"
 }

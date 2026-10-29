@@ -137,13 +137,6 @@ class ModelManagerDialog(QDialog):
 
         self._refresh_model_rows()
 
-    @property
-    def models_ready(self):
-        """Return whether every model requested by this dialog is installed."""
-        return bool(self.model_keys) and all(
-            ModelManager.is_available(key) for key in self.model_keys
-        )
-
     def _missing_model_keys(self):
         """Return requested model keys that do not currently have a local file."""
         return [key for key in self.model_keys if not ModelManager.is_available(key)]

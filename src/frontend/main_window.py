@@ -901,13 +901,15 @@ class MainWindow(QMainWindow):
         if self.is_batching:
             if task == "clean":
                 final_img = self._get_final_img_for_path(source_path)
-                is_last = self.batch_engine.save_current(final_img)
+                is_last = self._save_batch_current(final_img)
+                if is_last is None: return
                 if is_last: self.finalize_batch()
                 else: self.step_batch()
             elif task in ["ocr", "transparency"]:
                 # Scanning creates a mask for later review; only explicit Mask batch mode runs LaMa.
                 final_img = self._get_final_img_for_path(source_path)
-                is_last = self.batch_engine.save_current(final_img)
+                is_last = self._save_batch_current(final_img)
+                if is_last is None: return
                 if is_last: self.finalize_batch()
                 else: self.step_batch()
 
@@ -936,7 +938,8 @@ class MainWindow(QMainWindow):
 
         if not np.any(mask_gray):
             if self.is_batching:
-                is_last = self.batch_engine.save_current(self.canvas.get_composited_image())
+                is_last = self._save_batch_current(self.canvas.get_composited_image())
+                if is_last is None: return
                 if is_last: self.finalize_batch()
                 else: self.step_batch()
             else:
@@ -984,6 +987,30 @@ class MainWindow(QMainWindow):
         )
         return ans == QMessageBox.Yes
 
+    def _save_batch_current(self, image):
+        """Save the current batch image or report the export failure in the UI."""
+        try:
+            return self.batch_engine.save_current(image)
+        except (OSError, cv2.error) as exc:
+            index = self.batch_engine.current_index
+            if index < len(self.batch_engine.files):
+                failed_path = self.batch_engine.files[index]
+                self.page_states[failed_path] = PageState.ERROR
+                self.file_list.update_item_state(failed_path, "error")
+
+            logger.error(f"Batch export failed: {exc}")
+            self.is_batching = False
+            self.task_queue.clear()
+            self.total_lama_tasks = 0
+            self.completed_lama_tasks = 0
+            self._update_queue_ui()
+            QMessageBox.critical(
+                self,
+                tr("main.batch_save_failed_title"),
+                tr("main.batch_save_failed", error=str(exc)),
+            )
+            return None
+
     def on_start_batch(self):
         """Collect batch settings and initialize the batch-processing sequence."""
         if self.file_list.count() == 0: return
@@ -1015,7 +1042,17 @@ class MainWindow(QMainWindow):
         if required_model and not self.ensure_model_available(required_model):
             return
 
-        self.batch_engine.initialize_batch(paths, fmt)
+        try:
+            self.batch_engine.initialize_batch(paths, fmt)
+        except OSError as exc:
+            logger.error(f"Could not initialize batch export: {exc}")
+            QMessageBox.critical(
+                self,
+                tr("main.batch_save_failed_title"),
+                tr("main.batch_save_failed", error=str(exc)),
+            )
+            return
+
         self.is_batching = True
         if self.batch_scan_type == "mask":
             self.total_lama_tasks += len(paths)
@@ -1051,7 +1088,8 @@ class MainWindow(QMainWindow):
                 self.file_list.update_item_state(path, "ready")
                 self._update_queue_ui()
                 
-                is_last = self.batch_engine.save_current(img_cv)
+                is_last = self._save_batch_current(img_cv)
+                if is_last is None: return
                 if is_last: self.finalize_batch()
                 else: QTimer.singleShot(0, self.step_batch)
                 return
@@ -1070,7 +1108,8 @@ class MainWindow(QMainWindow):
                     self.file_list.update_item_state(path, "ready")
                     self._update_queue_ui()
                     
-                    is_last = self.batch_engine.save_current(self._get_final_img_for_path(path))
+                    is_last = self._save_batch_current(self._get_final_img_for_path(path))
+                    if is_last is None: return
                     if is_last: self.finalize_batch()
                     else: QTimer.singleShot(0, self.step_batch)
                     return

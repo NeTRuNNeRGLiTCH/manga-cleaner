@@ -8,51 +8,51 @@
     "es": {
       "english_name": "Spanish",
       "native_name": "Español",
-      "verified_source_sha256": "cf67c04a3919973fed7ece544a31223ede85bdf3ec6d06f28e84dd792b4334f8",
-      "catalog_sha256": "522072cdc0c30656f1e08b02ad0f993a6933bd256557500b4fa48aec9dc6d99a"
+      "verified_source_sha256": "8df38ab668bc21a5b75c0e22fb59b9ad7b4f0a26ee0736e7ca1f56516acad7f8",
+      "catalog_sha256": "eeb3d94f4decc49b0730515763a590c5a75af07fd22c8c76a6606726ef4207e5"
     },
     "pt-BR": {
       "english_name": "Portuguese (Brazil)",
       "native_name": "Português (Brasil)",
-      "verified_source_sha256": "cf67c04a3919973fed7ece544a31223ede85bdf3ec6d06f28e84dd792b4334f8",
-      "catalog_sha256": "5825d81b8327d86ed7aea6270037df4d7efe2724e8d4eae47de11b9b8e157c04"
+      "verified_source_sha256": "8df38ab668bc21a5b75c0e22fb59b9ad7b4f0a26ee0736e7ca1f56516acad7f8",
+      "catalog_sha256": "8a61aea5bc2331775aa69f57f3fa04d51d0f62a9d93f776e857d884fc6d9ccdb"
     },
     "fr": {
       "english_name": "French",
       "native_name": "Français",
-      "verified_source_sha256": "cf67c04a3919973fed7ece544a31223ede85bdf3ec6d06f28e84dd792b4334f8",
-      "catalog_sha256": "6fc8d9d2feee6257e8a43c42d21da61c0e163fd263abf63f803fd6871851fdea"
+      "verified_source_sha256": "8df38ab668bc21a5b75c0e22fb59b9ad7b4f0a26ee0736e7ca1f56516acad7f8",
+      "catalog_sha256": "326f314b04cbe53066ca2f82ea3741836bde2d0beac35b812d95b84db6b0072d"
     },
     "ar-EG": {
       "english_name": "Arabic (Egypt)",
       "native_name": "العربية (مصر)",
-      "verified_source_sha256": "cf67c04a3919973fed7ece544a31223ede85bdf3ec6d06f28e84dd792b4334f8",
-      "catalog_sha256": "4704280c53c3c4c984888c3088c05645c82a7351149d565e47bfbccfbdb67a53"
+      "verified_source_sha256": "8df38ab668bc21a5b75c0e22fb59b9ad7b4f0a26ee0736e7ca1f56516acad7f8",
+      "catalog_sha256": "ec6b18642fb44f9315cb7a533a0390100c19097d2440bf16c3b4576ddb041020"
     },
     "ko": {
       "english_name": "Korean",
       "native_name": "한국어",
-      "verified_source_sha256": "cf67c04a3919973fed7ece544a31223ede85bdf3ec6d06f28e84dd792b4334f8",
-      "catalog_sha256": "933ec142d0f9785987d618fd7f0901e1f1ba693ab2add3c474e23d40a97922d0"
+      "verified_source_sha256": "8df38ab668bc21a5b75c0e22fb59b9ad7b4f0a26ee0736e7ca1f56516acad7f8",
+      "catalog_sha256": "8e527066d93640f184db5e92390634b561710f5a7005e3c5fe23e989f4e2b84f"
     },
-    "jp": {
+    "ja": {
       "english_name": "Japanese",
       "native_name": "日本語",
-      "verified_source_sha256": "cf67c04a3919973fed7ece544a31223ede85bdf3ec6d06f28e84dd792b4334f8",
-      "catalog_sha256": "d292feffc127592e0f5076aa1b2018ee502a98d76558823b2ac3a8cf3a16a804"
+      "verified_source_sha256": "8df38ab668bc21a5b75c0e22fb59b9ad7b4f0a26ee0736e7ca1f56516acad7f8",
+      "catalog_sha256": "ec8bbd79ceca4e635ba7b2cf6e646b56e5eaa5b26a120c74a0d400cf87fac013"
     },
     "zh-CN": {
       "english_name": "Simplified Chinese",
       "native_name": "简体中文",
-      "verified_source_sha256": "cf67c04a3919973fed7ece544a31223ede85bdf3ec6d06f28e84dd792b4334f8",
-      "catalog_sha256": "fc3a6e3425f935041ae0eee61434aab749e883b231342261638c87707c81c56a"
+      "verified_source_sha256": "8df38ab668bc21a5b75c0e22fb59b9ad7b4f0a26ee0736e7ca1f56516acad7f8",
+      "catalog_sha256": "a93b2088777da582c54356cec51fae4c5414a3ba902fa16837d3c1d9d5aec9ab"
     },
     "zh-TW": {
       "english_name": "Traditional Chinese",
       "native_name": "繁體中文",
-      "verified_source_sha256": "cf67c04a3919973fed7ece544a31223ede85bdf3ec6d06f28e84dd792b4334f8",
-      "catalog_sha256": "a75ea6ecb72c9e8f6c6d23668c38573f56a2c1d079739f41570a9585fa4ede9f"
+      "verified_source_sha256": "8df38ab668bc21a5b75c0e22fb59b9ad7b4f0a26ee0736e7ca1f56516acad7f8",
+      "catalog_sha256": "8c190b5563e872a66cc6b0b30e286959b35db3bc56949446f98410a7afcbab08"
     }
   },
-  "source_catalog_sha256": "cf67c04a3919973fed7ece544a31223ede85bdf3ec6d06f28e84dd792b4334f8"
+  "source_catalog_sha256": "8df38ab668bc21a5b75c0e22fb59b9ad7b4f0a26ee0736e7ca1f56516acad7f8"
 }

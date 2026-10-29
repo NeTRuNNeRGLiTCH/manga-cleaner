@@ -96,9 +96,6 @@ class ColorSwatchButton(QPushButton):
             f"QPushButton:hover {{ border: 2px solid {Config.COLOR_ACCENT}; }}"
         )
 
-    def get_color(self) -> QColor:
-        return QColor(self._color)
-
 class CategorySelector(QFrame):
     """Top workspace/category switcher for the right sidebar (2x2 Grid)"""
     category_changed = Signal(str)

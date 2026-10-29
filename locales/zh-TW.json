@@ -73,6 +73,8 @@
   "main.app_name_v_version": "{app_name} v{version}",
   "main.b": "B",
   "main.batch_complete": "批次處理完成",
+  "main.batch_save_failed_title": "批次匯出失敗",
+  "main.batch_save_failed": "無法寫入批次輸出，處理已停止。\n\n{error}",
   "main.batch_setup": "批次設定",
   "main.brush_size": "筆刷大小",
   "main.category_category": "分類：{category}",
@@ -298,5 +300,5 @@
   "main.language_setting_error": "語言設定錯誤",
   "main.language_save_failed": "無法儲存語言偏好設定。請檢查應用程式是否對其設定資料夾具有寫入權限。",
   "meta.translation_status": "Verified and approved for use in Manga Cleaner Studio",
-  "meta.translation_source_sha256": "cf67c04a3919973fed7ece544a31223ede85bdf3ec6d06f28e84dd792b4334f8"
+  "meta.translation_source_sha256": "8df38ab668bc21a5b75c0e22fb59b9ad7b4f0a26ee0736e7ca1f56516acad7f8"
 }

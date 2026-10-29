@@ -11,11 +11,9 @@ from src.utils.logger import logger
 class AIManager:
     _ocr_engine = None
     _lama_engine = None
-    _persistent_mode = True
 
     @staticmethod
     def set_persistence(enabled: bool):
-        AIManager._persistent_mode = enabled
         if not enabled:
             AIManager.flush()
 

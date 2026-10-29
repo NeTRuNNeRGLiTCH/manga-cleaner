@@ -35,18 +35,12 @@ import re
 log = logging.getLogger("MangaCleaner")
 
 FALLBACK_LANG = "en"
-META_PREFIX = "meta."
 SETTINGS_KEY = "language"
 AUTO = "auto"
 CATALOG_ROLE_KEY = "meta.catalog_role"
 TRANSLATION_STATUS_KEY = "meta.translation_status"
 TRANSLATION_SOURCE_HASH_KEY = "meta.translation_source_sha256"
 VERIFIED_STATUS = "Verified and approved for use in Manga Cleaner Studio"
-VERIFICATION_KEYS = {
-    CATALOG_ROLE_KEY,
-    TRANSLATION_STATUS_KEY,
-    TRANSLATION_SOURCE_HASH_KEY,
-}
 
 _NON_CATALOG_SUFFIXES = (".sources.json",)
 _NON_CATALOG_NAMES = {"index.json"}

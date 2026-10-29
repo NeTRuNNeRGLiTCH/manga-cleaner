@@ -191,16 +191,7 @@ cd manga-cleaner
 
 ### 2. Download AI Models
 
-Download `models.zip` from the latest release and extract it into the root directory:
-
-```text
-manga-cleaner/
-├── models/
-├── src/
-├── assets/
-└── main.py
-
-```
+On first launch, the application offers to download missing ONNX models from its configured Hugging Face repository. You can also open **AI Models** in the application to download them later. The files are saved to the `models/` directory beside the source checkout or executable; a separate `models.zip` is not required.
 
 ### 3. Environment Setup
 
@@ -217,8 +208,8 @@ source venv/bin/activate
 # Install dependencies (CPU / Default):
 pip install -r requirements.txt
 
-# Or for Linux with NVIDIA GPU CUDA support:
-pip install -r requirements_linux_gpu.txt
+# For Linux with NVIDIA GPU support:
+pip install -r requirements_linux.txt
 
 ```
 
@@ -227,6 +218,51 @@ pip install -r requirements_linux_gpu.txt
 ```bash
 python main.py
 ```
+
+### 5. Build an Executable
+
+`build.py` checks the active Python environment for PyInstaller and installs version `6.18.0` with `pip` if it is missing. The install needs an internet connection. It does not add PyInstaller to the application's runtime requirements.
+
+On Linux, you can use `build.sh` instead of preparing the Python build environment manually. Install the Linux system libraries first (Debian/Ubuntu example):
+
+```bash
+sudo apt-get install python3.12-venv libgl1 libglib2.0-0 libegl1 libxkbcommon-x11-0 libdbus-1-3
+```
+
+Then run the interactive CPU/GPU selector, or pass `cpu`, `gpu`, or `all` directly:
+
+```bash
+bash build.sh
+bash build.sh cpu
+bash build.sh gpu
+bash build.sh all
+```
+
+The helper creates separate Python 3.12 environments under `build/`, installs the matching requirements and PyInstaller, then invokes `build.py`. To choose a specific interpreter, set `PYTHON`, for example `PYTHON=python3.12 bash build.sh cpu`. It does not install system packages or use `sudo` itself.
+
+On Windows, install the additional CUDA DLL packages before selecting the Windows GPU target:
+
+```bash
+python -m pip install nvidia-cuda-runtime-cu12 nvidia-cudnn-cu12 nvidia-cublas-cu12 nvidia-cufft-cu12 nvidia-curand-cu12
+```
+
+Run the interactive build selector. It lists only targets supported on the current operating system:
+
+```bash
+python build.py
+```
+
+You can also select a target directly. The target IDs are `windows-cpu`, `windows-cpu-clean`, `windows-gpu`, `linux-cpu`, and `linux-gpu`:
+
+```bash
+python build.py --list
+python build.py --target windows-cpu-clean
+python build.py --all --yes
+```
+
+`--all` builds every target supported on the current operating system; `--yes` allows it to replace existing outputs without prompting. Windows targets must be built on Windows and Linux targets on Linux; PyInstaller does not cross-compile between these platforms. Each target uses its own `build/` and `dist/` subdirectory so variants with the same executable name do not overwrite one another.
+
+The selector invokes the corresponding `.spec`; those files remain separate because their CPU/GPU dependencies and platform settings differ. Models are not bundled and are downloaded by the application when needed.
 
 ---
 
@@ -242,14 +278,7 @@ manga-cleaner/
 ├── .github/
 │   └── workflows/
 │       └── build.yml               # Validates locale approvals before release builds
-├── locales/                        # Multi-language catalogs and language index (see TRANSLATION.md)
-│   ├── ar-EG.json                  # Egyptian Arabic
-│   ├── en.json                     # English source catalog and recovery language
-│   ├── es.json                     # Spanish
-│   ├── fr.json                     # French
-│   ├── index.json                  # Language names and verification fingerprints
-│   ├── ko.json                     # Korean
-│   └── pt-BR.json                  # Brazilian Portuguese
+├── locales/                        # Language JSON catalogs and index (see TRANSLATION.md)
 ├── src/
 │   ├── backend/                    # Image processing, AI, batch, and export logic
 │   │   ├── ai_manager.py           # AI model inference and cleanup
@@ -287,7 +316,10 @@ manga-cleaner/
 │   ├── fix_leftovers.py            # Apply reviewed one-time migration fixes
 │   └── migrate_to_tr.py            # Migrate visible text to translation calls
 ├── .gitignore                      # Excluded local, generated, and runtime files
+├── build.py                        # Interactive native-platform PyInstaller target selector
+├── build.sh                        # Linux CPU/GPU build setup and launcher
 ├── CONTRIBUTING.md                 # Development and contribution guidelines
+├── DEVELOPMENT_NOTES.md            # Performance and maintenance review follow-ups
 ├── LICENSE                         # Apache 2.0 license
 ├── main.py                         # Application entry point
 ├── MangaCleaner_CPU.spec           # Windows CPU PyInstaller build

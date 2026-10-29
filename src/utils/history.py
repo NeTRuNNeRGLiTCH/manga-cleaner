@@ -1,6 +1,3 @@
-import numpy as np
-from PySide6.QtGui import QImage
-
 #/////////////////////////////////#
 #    4-STACK HISTORY MANAGER      #
 #/////////////////////////////////#

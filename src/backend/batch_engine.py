@@ -1,6 +1,5 @@
 import os
 import cv2
-from PySide6.QtCore import QObject, Signal
 from src.utils.config import Config
 from src.utils.paths import Paths
 from src.utils.logger import logger
@@ -9,11 +8,8 @@ from src.utils.logger import logger
 #    BATCH PROCESSING CONTROLLER  #
 #/////////////////////////////////#
 
-class BatchEngine(QObject):
-    page_started = Signal(str, int)
-
+class BatchEngine:
     def __init__(self):
-        super().__init__()
         self.files = []
         self.current_index = 0
         self.output_dir = ""
@@ -37,7 +33,6 @@ class BatchEngine(QObject):
     def get_next(self):
         if self.current_index < len(self.files):
             path = self.files[self.current_index]
-            self.page_started.emit(path, self.current_index)
             return path
         return None
 
@@ -60,7 +55,12 @@ class BatchEngine(QObject):
         else:
             out_bgr = cv2.cvtColor(cv_img, cv2.COLOR_RGB2BGR)
 
-        cv2.imwrite(save_path, out_bgr)
+        if not cv2.imwrite(save_path, out_bgr):
+            try:
+                os.remove(save_path)
+            except OSError:
+                pass
+            raise OSError(f"OpenCV could not write the output image: {save_path}")
         
         logger.info(f"[+] Successfully Saved Cleaned: {filename}")
         self.current_index += 1

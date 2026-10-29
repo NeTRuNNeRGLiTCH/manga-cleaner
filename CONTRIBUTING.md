@@ -45,7 +45,7 @@ pip install -r requirements.txt
 
 *(For Linux development, use `pip install -r requirements_linux.txt`.)*
 
-5. **Download the models:** Extract `models.zip` into the root repository directory prior to launching.
+5. **Download AI models when needed:** Launch the application and use the first-run model setup dialog, or open **AI Models** from the toolbar. The downloader saves models from the configured Hugging Face repository into the `models/` directory. No `models.zip` is required.
 
 ---
 
@@ -53,31 +53,42 @@ pip install -r requirements.txt
 
 These instructions are intended for developers compiling standalone binary releases from source. Verify that your platform dependencies match the target build.
 
-### 1. Windows Compilation (PyInstaller)
+### Native PyInstaller builds
 
-```cmd
-python -m venv venv
-.\venv\Scripts\activate
-pip install -r requirements.txt pyinstaller
-pyinstaller MangaCleaner_CPU_clean.spec --noconfirm --clean
+Use Python 3.12 and build on the target operating system: Windows builds must run on Windows, and Linux builds must run on Linux. PyInstaller does not cross-compile between these platforms. Linux builds may run inside a properly configured Linux container or virtual machine.
 
+Install the project dependencies for the selected platform. `build.py` checks for PyInstaller and installs the release-pinned version (`6.18.0`) into the active Python environment if it is missing; this requires an internet connection. The build tool is not added to the application's runtime requirements.
+
+For Linux GPU builds, install `requirements_linux.txt`. Before a Windows GPU build, install the CUDA DLL packages used by the release workflow:
+
+```powershell
+python -m pip install nvidia-cuda-runtime-cu12 nvidia-cudnn-cu12 nvidia-cublas-cu12 nvidia-cufft-cu12 nvidia-curand-cu12
 ```
 
-Copy the `models/` directory into the generated application's expected folder as configured in the spec file.
-
-### 2. Linux Compilation (Docker)
+On Linux, `bash build.sh` provides an interactive CPU/GPU selector and creates a separate Python 3.12 build environment for each variant. Install the required system libraries first (Debian/Ubuntu example):
 
 ```bash
-docker run --rm -v "$(pwd):/workspace" -w /workspace python:3.12-bookworm bash -c "
-  apt-get update && apt-get install -y libgl1 libglib2.0-0 zip
-  python -m venv venv
-  source venv/bin/activate
-  pip install -r requirements_linux.txt pyinstaller
-  pyinstaller --clean --noconfirm MangaCleaner_GPU_linux.spec
-  chown -R $(id -u):$(id -g) dist/ build/
-"
-
+sudo apt-get install python3.12-venv libgl1 libglib2.0-0 libegl1 libxkbcommon-x11-0 libdbus-1-3
+bash build.sh
 ```
+
+You can also run `bash build.sh cpu`, `bash build.sh gpu`, or `bash build.sh all`. The script installs Python dependencies and PyInstaller in its isolated build environments; it does not run `sudo` or install system packages itself.
+
+Run the unified selector to choose a native target:
+
+```bash
+python build.py
+```
+
+The selector can also be used from a terminal or automation:
+
+```bash
+python build.py --list
+python build.py --target windows-cpu-clean
+python build.py --all
+```
+
+Target names are `windows-cpu`, `windows-cpu-clean`, `windows-gpu`, `linux-cpu`, and `linux-gpu`. Only targets for the current operating system are offered. Each target retains its specialized `.spec` file and uses separate `build/<target>/` and `dist/<target>/` directories. Windows GPU builds also copy installed CUDA DLLs into the package. ONNX model weights are downloaded by the application at runtime and must not be copied into the build output.
 
 ---
 

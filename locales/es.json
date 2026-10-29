@@ -73,6 +73,8 @@
   "main.app_name_v_version": "{app_name} v{version}",
   "main.b": "N",
   "main.batch_complete": "Proceso por lotes completado",
+  "main.batch_save_failed_title": "Error al exportar el proceso por lotes",
+  "main.batch_save_failed": "No se pudo escribir la salida del proceso por lotes. El procesamiento se detuvo.\n\n{error}",
   "main.batch_setup": "Configuración del proceso por lotes",
   "main.brush_size": "TAMAÑO DEL PINCEL",
   "main.category_category": "CATEGORÍA: {category}",
@@ -298,5 +300,5 @@
   "main.language_setting_error": "Error en la configuración del idioma",
   "main.language_save_failed": "No se pudo guardar la preferencia de idioma. Comprueba que la aplicación pueda escribir en su carpeta de configuración.",
   "meta.translation_status": "Verified and approved for use in Manga Cleaner Studio",
-  "meta.translation_source_sha256": "cf67c04a3919973fed7ece544a31223ede85bdf3ec6d06f28e84dd792b4334f8"
+  "meta.translation_source_sha256": "8df38ab668bc21a5b75c0e22fb59b9ad7b4f0a26ee0736e7ca1f56516acad7f8"
 }
