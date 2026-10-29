@@ -7,6 +7,8 @@ from PySide6.QtCore import Qt, QRect, Signal
 from PySide6.QtGui import QIcon, QColor
 from src.utils.config import Config
 from src.utils.paths import Paths
+from src.utils.i18n import tr_label
+from src.utils.i18n import tr
 
 #/////////////////////////////////#
 #    STUDIO COMPONENT LIBRARY     #
@@ -94,9 +96,6 @@ class ColorSwatchButton(QPushButton):
             f"QPushButton:hover {{ border: 2px solid {Config.COLOR_ACCENT}; }}"
         )
 
-    def get_color(self) -> QColor:
-        return QColor(self._color)
-
 class CategorySelector(QFrame):
     """Top workspace/category switcher for the right sidebar (2x2 Grid)"""
     category_changed = Signal(str)
@@ -112,7 +111,7 @@ class CategorySelector(QFrame):
         self.buttons = {}
 
         for i, name in enumerate(categories):
-            btn = QPushButton(name)
+            btn = QPushButton(tr_label(name))   # visible label; `name` stays the internal ID
             btn.setCheckable(True)
             btn.setAutoExclusive(True)
             btn.setFixedHeight(28)
@@ -146,7 +145,7 @@ class ToolGroup(QFrame):
         row = 0
         col = 0
         for name in button_configs:
-            btn = QPushButton(name)
+            btn = QPushButton(tr_label(name))   # visible label; `name` stays the internal ID
             if name in checkable: 
                 btn.setCheckable(True)
                 btn.setAutoExclusive(True) 
@@ -174,7 +173,7 @@ class HardwareMonitor(QFrame):
         lay = QHBoxLayout(self)
         lay.setContentsMargins(10, 0, 10, 0)
         
-        self.lbl = QLabel("SYSTEM IDLE")
+        self.lbl = QLabel(tr("widgets.system_idle"))
         self.lbl.setStyleSheet(f"color: {Config.COLOR_ACCENT}; font-weight: bold; font-size: 10px;")
         
         self.bar = QSlider(Qt.Horizontal)
@@ -213,6 +212,6 @@ class LabeledSlider(QWidget):
 
     def update_text(self, val):
         if self.is_tile:
-            self.display.setText(f"{self.base_label}: {val * 512}px")
+            self.display.setText(tr("widgets.base_label_value_px", base_label=self.base_label, value=val * 512))
         else:
             self.display.setText(f"{self.base_label}: {val}{self.suffix}")

@@ -1,20 +1,20 @@
-# 🌌 MANGA CLEANER STUDIO v3.3.3: The Workspaces & Typesetting Update
+# 🌌 MANGA CLEANER STUDIO v3.4.2
 
-**High-Fidelity AI-Powered Scanlation Restoration Suite**
+**AI-assisted manga and webtoon cleanup, typesetting, translation workflow, and page assembly.**
 
-[![Download v3.3.3](https://img.shields.io/badge/DOWNLOAD-v3.3.3-00d4ff?style=for-the-badge&logo=github)](https://github.com/NeTRuNNeRGLiTCH/manga-cleaner/releases)
+[![Download v3.4.2](https://img.shields.io/badge/DOWNLOAD-v3.4.2-00d4ff?style=for-the-badge&logo=github)](https://github.com/NeTRuNNeRGLiTCH/manga-cleaner/releases)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=for-the-badge)](https://opensource.org/licenses/Apache-2.0)
 [![Python Version](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-blue?style=for-the-badge)](https://www.python.org/)
 [![Downloads](https://img.shields.io/github/downloads/NeTRuNNeRGLiTCH/manga-cleaner/total?color=blue&style=for-the-badge)](https://github.com/NeTRuNNeRGLiTCH/manga-cleaner/releases)
 [![Sibling App](https://img.shields.io/badge/Sibling_Project-Manga_Translate-ff007f?style=for-the-badge)](https://github.com/santiagodvergara05-debug/manga-translate-studio)
 
-Building on the modular Studio engine introduced in v3.0.0 and the toolkit expansion in v3.2.0, **Manga Cleaner Studio v3.3.3** expands Manga Cleaner into a multi-workspace scanlation tool. Four dedicated workspaces—**Cleaner**, **Typesetter**, **Stitcher**, and **Translator**—help scanlation teams move seamlessly from AI restoration to translation synchronization, text placement, and vertical page stitching without leaving the application.
+**Manga Cleaner Studio** is a desktop toolkit for preparing manga and webtoon pages. It combines AI-assisted image cleanup and manual mask editing with OCR and transparency scanning, text placement and styling, script synchronization, and lossless vertical stitching. The interface supports multiple languages. See [`TRANSLATION.md`](TRANSLATION.md) for available languages, localization status, and the catalog workflow.
 
 ---
 
-## 🖥️ Studio Preview (v3.3.3 UI)
+## 🖥️ Studio Preview (v3.4.0 UI)
 
-![Manga Cleaner Studio v3.3.3 UI](.github/assets/ui.png)
+![Manga Cleaner Studio v3.4.0 UI](.github/assets/ui.png)
 
 *Featuring the Obsidian Dark Theme, the two-column tool layout, live file-queue locking, and the four-workspace switcher (Cleaner · Typesetter · Stitcher · Translator).*
 
@@ -30,7 +30,7 @@ Prefer a visual guide? Watch the video walkthrough:
 
 [![Watch the Video Tutorial](https://img.youtube.com/vi/9psnwpJG3aE/hqdefault.jpg)](https://www.youtube.com/watch?v=9psnwpJG3aE)
 
-*Note: The tutorial was recorded using version 3.2.0; newer v3.3.3 Studio workspaces (Typesetter, Translator, Stitcher) operate directly inside the main UI.*
+*Note: The tutorial was recorded using version 3.2.0. The current 3.4.0 interface and features may differ; use the sections below as the up-to-date reference.*
 
 ---
 
@@ -166,7 +166,7 @@ Image 2 [002.jpg]
 
 ### Python version
 
-- **v3.4.0 (planned):** Community-contributed multi-language support through translation files.
+- **v3.4.0:** Multi-language UI foundation with English fallback, a language selector, and community-maintained locale catalogs. See [`TRANSLATION.md`](TRANSLATION.md) for language support details.
 - **v3.5.0 (under investigation):** Potential watermark-removal support using an AI model, subject to implementation feasibility and attribution to the model developer.
 
 The Python roadmap may change if development of the C++ version progresses faster than expected.
@@ -184,23 +184,14 @@ Running directly from the repository is recommended for development and Linux NV
 ### 1. Clone the Repository
 
 ```bash
-git clone [https://github.com/NeTRuNNeRGLiTCH/manga-cleaner.git](https://github.com/NeTRuNNeRGLiTCH/manga-cleaner.git)
+git clone https://github.com/NeTRuNNeRGLiTCH/manga-cleaner.git
 cd manga-cleaner
 
 ```
 
 ### 2. Download AI Models
 
-Download `models.zip` from the latest release and extract it into the root directory:
-
-```text
-manga-cleaner/
-├── models/
-├── src/
-├── assets/
-└── main.py
-
-```
+On first launch, the application offers to download missing ONNX models from its configured Hugging Face repository. You can also open **AI Models** in the application to download them later. The files are saved to the `models/` directory beside the source checkout or executable; a separate `models.zip` is not required.
 
 ### 3. Environment Setup
 
@@ -217,8 +208,8 @@ source venv/bin/activate
 # Install dependencies (CPU / Default):
 pip install -r requirements.txt
 
-# Or for Linux with NVIDIA GPU CUDA support:
-pip install -r requirements_linux_gpu.txt
+# For Linux with NVIDIA GPU support:
+pip install -r requirements_linux.txt
 
 ```
 
@@ -228,11 +219,121 @@ pip install -r requirements_linux_gpu.txt
 python main.py
 ```
 
+### 5. Build an Executable
+
+`build.py` checks the active Python environment for PyInstaller and installs version `6.18.0` with `pip` if it is missing. The install needs an internet connection. It does not add PyInstaller to the application's runtime requirements.
+
+On Linux, you can use `build.sh` instead of preparing the Python build environment manually. Install the Linux system libraries first (Debian/Ubuntu example):
+
+```bash
+sudo apt-get install python3.12-venv libgl1 libglib2.0-0 libegl1 libxkbcommon-x11-0 libdbus-1-3
+```
+
+Then run the interactive CPU/GPU selector, or pass `cpu`, `gpu`, or `all` directly:
+
+```bash
+bash build.sh
+bash build.sh cpu
+bash build.sh gpu
+bash build.sh all
+```
+
+The helper creates separate Python 3.12 environments under `build/`, installs the matching requirements and PyInstaller, then invokes `build.py`. To choose a specific interpreter, set `PYTHON`, for example `PYTHON=python3.12 bash build.sh cpu`. It does not install system packages or use `sudo` itself.
+
+On Windows, install the additional CUDA DLL packages before selecting the Windows GPU target:
+
+```bash
+python -m pip install nvidia-cuda-runtime-cu12 nvidia-cudnn-cu12 nvidia-cublas-cu12 nvidia-cufft-cu12 nvidia-curand-cu12
+```
+
+Run the interactive build selector. It lists only targets supported on the current operating system:
+
+```bash
+python build.py
+```
+
+You can also select a target directly. The target IDs are `windows-cpu`, `windows-cpu-clean`, `windows-gpu`, `linux-cpu`, and `linux-gpu`:
+
+```bash
+python build.py --list
+python build.py --target windows-cpu-clean
+python build.py --all --yes
+```
+
+`--all` builds every target supported on the current operating system; `--yes` allows it to replace existing outputs without prompting. Windows targets must be built on Windows and Linux targets on Linux; PyInstaller does not cross-compile between these platforms. Each target uses its own `build/` and `dist/` subdirectory so variants with the same executable name do not overwrite one another.
+
+The selector invokes the corresponding `.spec`; those files remain separate because their CPU/GPU dependencies and platform settings differ. Models are not bundled and are downloaded by the application when needed.
+
 ---
 
 ## 👥 Contributing
 
 Interested in contributing code, models, or optimizations? Please review **[CONTRIBUTING.md](CONTRIBUTING.md)** for development guidelines, coding standards, and compilation instructions (PyInstaller / Docker).
+
+### Project Directory Structure
+
+```text
+manga-cleaner/
+├── assets/                         # Application icons and bundled UI assets
+├── .github/
+│   └── workflows/
+│       └── build.yml               # Validates locale approvals before release builds
+├── locales/                        # Language JSON catalogs and index (see TRANSLATION.md)
+├── src/
+│   ├── backend/                    # Image processing, AI, batch, and export logic
+│   │   ├── ai_manager.py           # AI model inference and cleanup
+│   │   ├── batch_engine.py         # Batch job setup and processing queue
+│   │   ├── model_manager.py        # AI model locations and Hugging Face downloads
+│   │   ├── onnx_engine.py          # ONNX runtime setup and inference helpers
+│   │   ├── photopea.py             # Photopea integration
+│   │   ├── photoshop.py            # Adobe Photoshop integration
+│   │   ├── processor.py            # Image processing pipeline
+│   │   ├── stitcher.py             # Lossless page stitching
+│   │   ├── translator.py           # Translation script parsing and synchronization
+│   │   └── workers.py              # Background processing workers
+│   ├── frontend/                   # PySide6 windows, widgets, canvas, and styles
+│   │   ├── batch_setup_dialog.py   # Batch scan and export options
+│   │   ├── canvas.py               # Image canvas and interactive text items
+│   │   ├── help_system.py          # In-app help window and guides
+│   │   ├── main_window.py          # Main application window and controller
+│   │   ├── model_manager_dialog.py # Model information and download UI
+│   │   ├── project_reset.py        # Project reset and cleanup controller
+│   │   ├── styles.qss              # Application stylesheet
+│   │   ├── typesetter_panel.py     # Typesetting controls and text queue
+│   │   └── widgets.py              # Shared UI widgets
+│   └── utils/                      # Configuration, localization, paths, and logging
+│       ├── config.py               # Application constants and settings
+│       ├── history.py              # Undo and redo history
+│       ├── i18n.py                 # Single-catalog loader and verification checks
+│       ├── logger.py               # Application logging
+│       ├── paths.py                # Runtime and resource path handling
+│       └── system_info.py          # System and hardware monitoring
+├── tests/
+│   └── test_i18n.py                # Catalog loading, approval, and fingerprint tests
+├── tools/                          # Localization extraction, migration, and validation
+│   ├── check_locales.py            # Compare, complete, approve, and release-check catalogs
+│   ├── extract_strings.py          # Find visible strings in the source
+│   ├── fix_leftovers.py            # Apply reviewed one-time migration fixes
+│   └── migrate_to_tr.py            # Migrate visible text to translation calls
+├── .gitignore                      # Excluded local, generated, and runtime files
+├── build.py                        # Interactive native-platform PyInstaller target selector
+├── build.sh                        # Linux CPU/GPU build setup and launcher
+├── CONTRIBUTING.md                 # Development and contribution guidelines
+├── DEVELOPMENT_NOTES.md            # Performance and maintenance review follow-ups
+├── LICENSE                         # Apache 2.0 license
+├── main.py                         # Application entry point
+├── MangaCleaner_CPU.spec           # Windows CPU PyInstaller build
+├── MangaCleaner_CPU_clean.spec     # Minimal Windows CPU PyInstaller build
+├── MangaCleaner_CPU_linux.spec     # Linux CPU PyInstaller build
+├── MangaCleaner_GPU.spec           # Windows GPU PyInstaller build
+├── MangaCleaner_GPU_linux.spec     # Linux GPU PyInstaller build
+├── README.md                       # Project overview and setup instructions
+├── requirements.txt                # Windows and general Python dependencies
+├── requirements_linux.txt          # Linux Python dependencies
+└── TRANSLATION.md                  # Localization and catalog workflow
+```
+
+Runtime data, downloaded models, build outputs, and processed images are created or installed separately and are not part of the source tree shown above. See [Running from Source](#-running-from-source) and [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 

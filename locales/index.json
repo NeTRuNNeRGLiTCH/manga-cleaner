@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "languages": {
+    "en": {
+      "english_name": "English",
+      "native_name": "English"
+    },
+    "es": {
+      "english_name": "Spanish",
+      "native_name": "Español",
+      "verified_source_sha256": "8df38ab668bc21a5b75c0e22fb59b9ad7b4f0a26ee0736e7ca1f56516acad7f8",
+      "catalog_sha256": "eeb3d94f4decc49b0730515763a590c5a75af07fd22c8c76a6606726ef4207e5"
+    },
+    "pt-BR": {
+      "english_name": "Portuguese (Brazil)",
+      "native_name": "Português (Brasil)",
+      "verified_source_sha256": "8df38ab668bc21a5b75c0e22fb59b9ad7b4f0a26ee0736e7ca1f56516acad7f8",
+      "catalog_sha256": "8a61aea5bc2331775aa69f57f3fa04d51d0f62a9d93f776e857d884fc6d9ccdb"
+    },
+    "fr": {
+      "english_name": "French",
+      "native_name": "Français",
+      "verified_source_sha256": "8df38ab668bc21a5b75c0e22fb59b9ad7b4f0a26ee0736e7ca1f56516acad7f8",
+      "catalog_sha256": "326f314b04cbe53066ca2f82ea3741836bde2d0beac35b812d95b84db6b0072d"
+    },
+    "ar-EG": {
+      "english_name": "Arabic (Egypt)",
+      "native_name": "العربية (مصر)",
+      "verified_source_sha256": "8df38ab668bc21a5b75c0e22fb59b9ad7b4f0a26ee0736e7ca1f56516acad7f8",
+      "catalog_sha256": "ec6b18642fb44f9315cb7a533a0390100c19097d2440bf16c3b4576ddb041020"
+    },
+    "ko": {
+      "english_name": "Korean",
+      "native_name": "한국어",
+      "verified_source_sha256": "8df38ab668bc21a5b75c0e22fb59b9ad7b4f0a26ee0736e7ca1f56516acad7f8",
+      "catalog_sha256": "8e527066d93640f184db5e92390634b561710f5a7005e3c5fe23e989f4e2b84f"
+    },
+    "ja": {
+      "english_name": "Japanese",
+      "native_name": "日本語",
+      "verified_source_sha256": "8df38ab668bc21a5b75c0e22fb59b9ad7b4f0a26ee0736e7ca1f56516acad7f8",
+      "catalog_sha256": "ec8bbd79ceca4e635ba7b2cf6e646b56e5eaa5b26a120c74a0d400cf87fac013"
+    },
+    "zh-CN": {
+      "english_name": "Simplified Chinese",
+      "native_name": "简体中文",
+      "verified_source_sha256": "8df38ab668bc21a5b75c0e22fb59b9ad7b4f0a26ee0736e7ca1f56516acad7f8",
+      "catalog_sha256": "a93b2088777da582c54356cec51fae4c5414a3ba902fa16837d3c1d9d5aec9ab"
+    },
+    "zh-TW": {
+      "english_name": "Traditional Chinese",
+      "native_name": "繁體中文",
+      "verified_source_sha256": "8df38ab668bc21a5b75c0e22fb59b9ad7b4f0a26ee0736e7ca1f56516acad7f8",
+      "catalog_sha256": "8c190b5563e872a66cc6b0b30e286959b35db3bc56949446f98410a7afcbab08"
+    }
+  },
+  "source_catalog_sha256": "8df38ab668bc21a5b75c0e22fb59b9ad7b4f0a26ee0736e7ca1f56516acad7f8"
+}

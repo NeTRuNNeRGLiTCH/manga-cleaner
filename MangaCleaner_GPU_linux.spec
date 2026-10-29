@@ -56,6 +56,7 @@ a = Analysis(
     datas=[
         ('assets', 'assets'),
         ('src', 'src'),
+        ('locales', 'locales'),
     ] + nvidia_datas,
 
     hiddenimports=[

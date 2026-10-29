@@ -82,6 +82,9 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
 
+      - name: Validate approved translation catalogs
+        run: python tools/check_locales.py --release
+
       - name: Install Python Dependencies (Windows & Linux CPU)
         if: runner.os == 'Windows' || matrix.is_gpu == false
         run: |
@@ -131,51 +134,22 @@ jobs:
         run: |
           python -m pip install nvidia-cuda-runtime-cu12 nvidia-cudnn-cu12 nvidia-cublas-cu12 nvidia-cufft-cu12 nvidia-curand-cu12
 
-      # --- Download ONNX Models ---
-      - name: Download & Extract AI Models (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path "models"
-          Invoke-WebRequest -Uri "https://github.com/MavikBow/manga-cleaner/releases/download/v3.2.0-rc1/models.zip" -OutFile "models.zip"
-          Expand-Archive -Path "models.zip" -DestinationPath "models" -Force
-          Remove-Item "models.zip" -Force
-
-      - name: Download & Extract AI Models (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          mkdir -p models
-          curl -L "https://github.com/MavikBow/manga-cleaner/releases/download/v3.2.0-rc1/models.zip" -o models.zip
-          7z x models.zip -omodels/ -y
-          rm -f models.zip
-
       # --- PyInstaller Compilation ---
       - name: Build with PyInstaller (${{ matrix.spec }})
         run: |
           pyinstaller ${{ matrix.spec }} --noconfirm --clean
 
-      # --- Post-Build Bundling ---
-      - name: Bundle Models & Harvest CUDA DLLs (Windows)
-        if: runner.os == 'Windows'
+      # Models are downloaded by the application into its writable models folder.
+      # Keep GPU runtime DLLs beside the Windows GPU build; they are not model weights.
+      - name: Harvest CUDA DLLs (Windows GPU)
+        if: runner.os == 'Windows' && matrix.is_gpu
         shell: pwsh
         run: |
-          # Copy models into the created dist subfolder
           $distSubfolder = (Get-ChildItem -Path "dist" -Directory | Select-Object -First 1).FullName
-          Copy-Item -Path "models" -Destination "$distSubfolder\models" -Recurse -Force
-
-          # If GPU build, inject CUDA/cuDNN DLLs into _internal
-          if ("${{ matrix.is_gpu }}" -eq "true") {
-              $sitePackages = python -c "import site; print(site.getsitepackages()[0])"
-              Get-ChildItem -Path "$sitePackages\nvidia" -Recurse -Filter "*.dll" | ForEach-Object {
-                  Copy-Item $_.FullName -Destination "$distSubfolder\_internal" -Force
-              }
+          $sitePackages = python -c "import site; print(site.getsitepackages()[0])"
+          Get-ChildItem -Path "$sitePackages\nvidia" -Recurse -Filter "*.dll" | ForEach-Object {
+              Copy-Item $_.FullName -Destination "$distSubfolder\_internal" -Force
           }
-
-      - name: Bundle Models (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          DIST_SUBFOLDER=$(find dist -mindepth 1 -maxdepth 1 -type d | head -n 1)
-          cp -r models "$DIST_SUBFOLDER/"
 
       # --- 512 MB Split Compression ---
       - name: Compress into 512MB Multi-part Zips (Windows)

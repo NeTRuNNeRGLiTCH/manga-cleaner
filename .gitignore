@@ -76,3 +76,8 @@ desktop.ini
 
 # --- font presets ---
 font_presets.json
+
+# --- Generated localization tooling artifacts ---
+/MIGRATION_REPORT.md
+/STRINGS_REPORT.md
+/locales/en.sources.json

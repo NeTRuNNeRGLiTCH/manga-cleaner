@@ -2,6 +2,7 @@ import cv2
 import time
 import numpy as np
 import multiprocessing
+import threading
 from concurrent.futures import ProcessPoolExecutor
 from PySide6.QtCore import QObject, Signal, Slot
 from src.backend.processor import ImageProcessor
@@ -9,12 +10,27 @@ from src.utils.logger import logger
 
 # Keep a single background process alive so models stay in VRAM
 _pool = None
+_progress_manager = None
+_progress_manager_lock = threading.Lock()
+
+
 def get_pool():
     global _pool
     if _pool is None:
         logger.info("[+] Initializing new ProcessPoolExecutor for background AI tasks.")
         _pool = ProcessPoolExecutor(max_workers=1)
     return _pool
+
+
+def get_progress_manager():
+    """Lazily create one manager for progress queues used by LaMa tasks."""
+    global _progress_manager
+    if _progress_manager is None:
+        with _progress_manager_lock:
+            if _progress_manager is None:
+                logger.info("[+] Initializing shared progress queue manager.")
+                _progress_manager = multiprocessing.Manager()
+    return _progress_manager
 
 # Top-level functions so Windows can send them to the background process
 def _run_ocr_process(cv_img, language):
@@ -45,7 +61,6 @@ class AIWorker(QObject):
         super().__init__()
         self.task = task
         self.args = args
-        self.manager = multiprocessing.Manager()
         logger.info(f"[i] AIWorker initialized for task: {self.task}")
 
     @Slot()
@@ -75,17 +90,25 @@ class AIWorker(QObject):
     def run_clean(self, cv_img, mask_img, max_tile_w):
         try:
             logger.info("[i] Submitting LaMa Clean task to background OS process...")
-            q = self.manager.Queue()
-            future = get_pool().submit(_run_clean_process, cv_img, mask_img, max_tile_w, q)
-            
-            # Poll the background process and update UI progress
+            # Only LaMa cleanup reports progress through a manager-backed queue.
+            # Reuse one lazily started manager instead of starting a helper
+            # process for every AIWorker (including OCR and transparency scans).
+            progress_queue = get_progress_manager().Queue()
+            future = get_pool().submit(
+                _run_clean_process, cv_img, mask_img, max_tile_w, progress_queue
+            )
+
+            # Poll the background process and update UI progress.
             while not future.done():
-                while not q.empty():
-                    self.progress.emit(q.get())
+                while not progress_queue.empty():
+                    self.progress.emit(progress_queue.get())
                 time.sleep(0.05)
-                
-            logger.info("[+] LaMa Clean background task completed successfully.")
+
             res = future.result()
+            while not progress_queue.empty():
+                self.progress.emit(progress_queue.get())
+
+            logger.info("[+] LaMa Clean background task completed successfully.")
             self.finished.emit(res[0], res[1])
         except Exception as e:
             logger.error(f"[X] LaMa Clean Task crashed in background process: {e}")
