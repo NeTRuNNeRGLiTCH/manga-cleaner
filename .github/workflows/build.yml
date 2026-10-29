@@ -82,6 +82,9 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
 
+      - name: Validate approved translation catalogs
+        run: python tools/check_locales.py --release
+
       - name: Install Python Dependencies (Windows & Linux CPU)
         if: runner.os == 'Windows' || matrix.is_gpu == false
         run: |

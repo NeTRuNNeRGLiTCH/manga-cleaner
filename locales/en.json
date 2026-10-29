@@ -1,6 +1,10 @@
 {
   "meta.language_name": "English",
   "meta.language_name_english": "English",
+  "meta.catalog_role": "Original source catalog and primary language",
+  "localization.verification_required_title": "Translation catalog needs verification",
+  "localization.verification_required_message": "The selected {language} catalog is not verified against the current English source ({reason}). The application switched to English for this session.",
+  "localization.verification_required_instructions": "From the source project, review the catalog and run:\npython tools/check_locales.py --approve locales/{language}.json",
   "models.setup_title": "Set up AI models",
   "models.manager_title": "AI model downloads",
   "models.setup_intro": "AI models are not installed yet. Download only the models you need now, or choose Not now and download them later when you use OCR or cleanup.",
@@ -15,6 +19,7 @@
   "models.download": "Download",
   "models.download_model": "Download model",
   "models.download_all": "Download all missing models",
+  "models.close": "Close",
   "models.not_now": "Not now",
   "models.installed": "Installed",
   "models.not_installed": "Not installed",

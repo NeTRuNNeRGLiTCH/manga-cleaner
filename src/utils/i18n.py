@@ -14,17 +14,19 @@ Usage
 Rules
 -----
 * Catalogs are flat JSON files: {"key": "text with {placeholders}"}.
-* English (``en.json``) is the source of truth and the fallback:
-  language -> English -> the key itself (never raises, never shows empty text).
-* Language files are looked up in two places; the user folder wins per key:
+* English (``en.json``) is the source of truth and the recovery language. Verified
+  secondary catalogs are complete, so normal startup loads only the selected one.
+* Language files are looked up in two places; the user folder replaces the bundle:
     1. bundled : <bundle>/locales/*.json      (shipped inside the .exe)
     2. user    : <exe folder>/locales/*.json  (community / custom translations)
-  A user file may be partial: missing keys fall back to the bundled file, then English.
+* Non-English catalogs must match the verification hashes in ``index.json``. If
+  validation fails, English is loaded for recovery and a startup warning is shown.
 * The language is applied at startup (restart to change it).
 * The file name is the language code (``es.json``, ``pt-BR.json``); the display
   name comes from the ``meta.language_name`` key inside the file.
 """
 
+import hashlib
 import json
 import logging
 import os
@@ -36,6 +38,15 @@ FALLBACK_LANG = "en"
 META_PREFIX = "meta."
 SETTINGS_KEY = "language"
 AUTO = "auto"
+CATALOG_ROLE_KEY = "meta.catalog_role"
+TRANSLATION_STATUS_KEY = "meta.translation_status"
+TRANSLATION_SOURCE_HASH_KEY = "meta.translation_source_sha256"
+VERIFIED_STATUS = "Verified and approved for use in Manga Cleaner Studio"
+VERIFICATION_KEYS = {
+    CATALOG_ROLE_KEY,
+    TRANSLATION_STATUS_KEY,
+    TRANSLATION_SOURCE_HASH_KEY,
+}
 
 _NON_CATALOG_SUFFIXES = (".sources.json",)
 _NON_CATALOG_NAMES = {"index.json"}
@@ -47,6 +58,8 @@ _state = {
     "lang": FALLBACK_LANG,
     "catalog": {},
     "fallback": {},
+    "catalog_warning": None,
+    "index_cache": {},
     "missing_logged": set(),
 }
 
@@ -84,6 +97,19 @@ def _scan_dir(folder):
     return found
 
 
+def _unique_folders(*folders):
+    """Return non-empty locale folders once, preserving the requested precedence."""
+    result, seen = [], set()
+    for folder in folders:
+        if not folder:
+            continue
+        key = os.path.normcase(os.path.abspath(folder))
+        if key not in seen:
+            seen.add(key)
+            result.append(folder)
+    return result
+
+
 def _load_file(path):
     """Load one catalog. Bad file -> {} (logged). Non-string values are dropped."""
     try:
@@ -105,14 +131,86 @@ def _load_file(path):
 
 
 def _load_language(code):
-    """Bundled file first, then user file on top (per-key override)."""
+    """Load one locale catalog, preferring the user catalog over the bundled copy."""
+    path = _find_language_path(code)
+    return _load_file(path) if path else {}
+
+
+def _find_language_path(code):
+    """Find a locale file using user-over-bundled precedence."""
     key = _norm(code)
-    merged = {}
-    for folder in (_state["bundled_dir"], _state["user_dir"]):
+    for folder in _unique_folders(_state["user_dir"], _state["bundled_dir"]):
         entry = _scan_dir(folder).get(key)
         if entry:
-            merged.update(_load_file(entry[1]))
-    return merged
+            return entry[1]
+    return None
+
+
+def _canonical_hash(data):
+    """Hash parsed JSON independently of formatting and line endings."""
+    payload = json.dumps(data, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _source_fingerprint(path):
+    """Hash English catalog bytes without parsing them or retaining their contents."""
+    try:
+        with open(path, "rb") as f:
+            payload = f.read()
+    except OSError:
+        return None
+    if payload.startswith(b"\xef\xbb\xbf"):
+        payload = payload[3:]
+    payload = payload.replace(b"\r\n", b"\n")
+    return hashlib.sha256(payload).hexdigest()
+
+
+def _read_index_manifest(folder):
+    """Read the small locale manifest without loading any translation catalogs."""
+    if not folder or not os.path.isdir(folder):
+        return {}
+    cache_key = os.path.normcase(os.path.abspath(folder))
+    if cache_key in _state["index_cache"]:
+        return _state["index_cache"][cache_key]
+    try:
+        with open(os.path.join(folder, "index.json"), "r", encoding="utf-8-sig") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        data = {}
+    if not isinstance(data, dict):
+        data = {}
+    _state["index_cache"][cache_key] = data
+    return data
+
+
+def _verification_entry(code, catalog_path):
+    """Return whether a locale file matches its approved source and catalog hashes."""
+    manifest = _read_index_manifest(os.path.dirname(catalog_path))
+    languages = manifest.get("languages")
+    if not isinstance(languages, dict):
+        return False, "the locale index is missing or invalid", {}
+    entry = next(
+        (value for name, value in languages.items()
+         if _norm(name) == _norm(code) and isinstance(value, dict)),
+        None,
+    )
+    if entry is None:
+        return False, "the language is not listed in locales/index.json", {}
+
+    catalog = _load_file(catalog_path)
+    source_hash = manifest.get("source_catalog_sha256")
+    english_path = _find_language_path(FALLBACK_LANG)
+    if not english_path or _source_fingerprint(english_path) != source_hash:
+        return False, "the English source catalog changed or is unavailable", catalog
+    if not source_hash or entry.get("verified_source_sha256") != source_hash:
+        return False, "the catalog was not verified against the current source version", catalog
+    if catalog.get(TRANSLATION_STATUS_KEY) != VERIFIED_STATUS:
+        return False, "the catalog is missing its verification marker", catalog
+    if catalog.get(TRANSLATION_SOURCE_HASH_KEY) != source_hash:
+        return False, "the catalog source fingerprint is missing or outdated", catalog
+    if entry.get("catalog_sha256") != _canonical_hash(catalog):
+        return False, "the catalog changed after it was verified", catalog
+    return True, "", catalog
 
 
 def _load_language_index(folder):
@@ -120,13 +218,8 @@ def _load_language_index(folder):
     if not folder or not os.path.isdir(folder):
         return {}
     path = os.path.join(folder, "index.json")
-    try:
-        with open(path, "r", encoding="utf-8-sig") as f:
-            data = json.load(f)
-    except FileNotFoundError:
-        return {}
-    except (OSError, ValueError) as e:
-        log.warning(f"i18n: ignoring language index {path}: {e}")
+    data = _read_index_manifest(folder)
+    if not data:
         return {}
 
     languages = data.get("languages") if isinstance(data, dict) else None
@@ -192,28 +285,23 @@ def save_language(code):
 # Public API
 # ----------------------------------------------------------------------------
 def available_languages():
-    """[(code, display_name)] - English first, then alphabetical by English display name."""
+    """Return indexed languages without opening their translation catalogs."""
     catalog_files = {}
-    for folder in (_state["bundled_dir"], _state["user_dir"]):
+    for folder in _unique_folders(_state["bundled_dir"], _state["user_dir"]):
         for norm, (code, path) in _scan_dir(folder).items():
             catalog_files[norm] = (code, path)  # user dir overrides the entry
 
     metadata = {}
-    for folder in (_state["bundled_dir"], _state["user_dir"]):
+    for folder in _unique_folders(_state["bundled_dir"], _state["user_dir"]):
         for norm, (code, english_name, native_name) in _load_language_index(folder).items():
             if norm in catalog_files:
                 catalog_code = catalog_files[norm][0]
                 metadata[norm] = (catalog_code, english_name, native_name)
 
-    # Backward compatibility for old/custom locale folders without an index.
-    if not metadata:
-        for norm, (code, _path) in catalog_files.items():
-            catalog = _load_language(code)
-            native_name = catalog.get(META_PREFIX + "language_name") or code
-            english_name = catalog.get(META_PREFIX + "language_name_english")
-            if not english_name and norm == FALLBACK_LANG:
-                english_name = "English"
-            metadata[norm] = (code, english_name or native_name, native_name)
+    # Legacy folders without an index remain discoverable by filename only.
+    # Never parse every catalog just to populate the language selector.
+    for norm, (code, _path) in catalog_files.items():
+        metadata.setdefault(norm, (code, code, code))
 
     result = []
     for norm, (code, english_name, native_name) in metadata.items():
@@ -228,6 +316,19 @@ def available_languages():
 
 def current_language():
     return _state["lang"]
+
+
+def has_english_source_catalog():
+    """Check whether an English source catalog file exists without loading it."""
+    for folder in _unique_folders(_state["bundled_dir"], _state["user_dir"]):
+        if _scan_dir(folder).get(FALLBACK_LANG):
+            return True
+    return False
+
+
+def catalog_warning():
+    """Return startup details when the requested locale failed verification."""
+    return _state["catalog_warning"]
 
 
 def resolve_language(requested, system_locale=None):
@@ -249,20 +350,27 @@ def resolve_language(requested, system_locale=None):
 
 
 def set_language(code):
-    """Load a language now (used by init and by tests). Unknown code -> English."""
-    _state["fallback"] = _load_language(FALLBACK_LANG)
+    """Load English or one approved locale; unverified catalogs recover to English."""
+    _state["fallback"] = {}
+    _state["catalog_warning"] = None
     if _norm(code) == FALLBACK_LANG:
         _state["lang"] = FALLBACK_LANG
-        _state["catalog"] = _state["fallback"]
+        _state["catalog"] = _load_language(FALLBACK_LANG)
     else:
-        catalog = _load_language(code)
-        if catalog:
+        path = _find_language_path(code)
+        if path:
+            approved, reason, catalog = _verification_entry(code, path)
+        else:
+            approved, reason, catalog = False, "the translation catalog file is missing", {}
+        if approved and catalog:
             _state["lang"] = code
             _state["catalog"] = catalog
         else:
-            log.warning(f"i18n: language '{code}' not found, using English")
+            log.warning(f"i18n: language '{code}' is not verified ({reason}); using English")
+            _state["catalog_warning"] = {"language": code, "reason": reason}
             _state["lang"] = FALLBACK_LANG
-            _state["catalog"] = _state["fallback"]
+            _state["catalog"] = _load_language(FALLBACK_LANG)
+            _state["fallback"] = _state["catalog"]
     _state["missing_logged"] = set()
     return _state["lang"]
 
@@ -275,6 +383,7 @@ def init(bundled_dir, user_dir=None, settings_path=None, system_locale=None, lan
     _state["bundled_dir"] = bundled_dir
     _state["user_dir"] = user_dir
     _state["settings_path"] = settings_path
+    _state["index_cache"] = {}
     requested = language if language is not None else get_saved_language()
     chosen = resolve_language(requested, system_locale)
     set_language(chosen)
@@ -300,7 +409,7 @@ def _format(text, kwargs):
 
 
 def tr(key, **kwargs):
-    """Translate `key`. Falls back to English, then to the key itself."""
+    """Translate `key`; use English only during recovery, then the key itself."""
     text = _state["catalog"].get(key)
     if text is None:
         text = _state["fallback"].get(key)

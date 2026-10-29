@@ -2,7 +2,7 @@ import sys
 import os
 import ctypes
 import multiprocessing
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QMessageBox
 from PySide6.QtGui import QFont, QIcon
 from PySide6.QtCore import Qt, qInstallMessageHandler, QLocale
 from src.frontend.main_window import MainWindow
@@ -83,6 +83,47 @@ def main():
             logger.error(f"Styles Load Failed: {e}")
     else:
         logger.warning(f"Stylesheet missing at: {qss_path}")    
+
+    # Warn every launch if the English source catalog is missing from all locations.
+    if not i18n.has_english_source_catalog():
+        searched_paths = sorted({
+            os.path.join(folder, "en.json")
+            for folder in (Paths.LOCALES_BUNDLED, Paths.LOCALES_USER)
+            if folder
+        })
+        warning = QMessageBox()
+        warning.setIcon(QMessageBox.Critical)
+        warning.setWindowTitle("Critical: English source catalog missing")
+        warning.setText(
+            "The English source catalog (locales/en.json) is missing."
+        )
+        warning.setInformativeText(
+            "English is the source of truth for the application's translations. "
+            "Without it, some interface text or localization tools may fail. "
+            "Restore en.json from a clean copy of the project. The application "
+            "will continue after you acknowledge this warning.\n\n"
+            "Searched locations:\n" + "\n".join(searched_paths)
+        )
+        warning.setStandardButtons(QMessageBox.Ok)
+        warning.button(QMessageBox.Ok).setText("OK — Continue")
+        warning.exec()
+
+    catalog_issue = i18n.catalog_warning()
+    if catalog_issue and i18n.has_english_source_catalog():
+        warning = QMessageBox()
+        warning.setIcon(QMessageBox.Warning)
+        warning.setWindowTitle(i18n.tr("localization.verification_required_title"))
+        warning.setText(i18n.tr(
+            "localization.verification_required_message",
+            language=catalog_issue["language"],
+            reason=catalog_issue["reason"],
+        ))
+        warning.setInformativeText(i18n.tr(
+            "localization.verification_required_instructions",
+            language=catalog_issue["language"],
+        ))
+        warning.setStandardButtons(QMessageBox.Ok)
+        warning.exec()
 
     # 5. Launch Main Studio
     try:

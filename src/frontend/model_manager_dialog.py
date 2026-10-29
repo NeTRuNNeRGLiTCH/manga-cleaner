@@ -155,11 +155,20 @@ class ModelManagerDialog(QDialog):
             status_label.setText(
                 tr("models.installed") if installed else tr("models.not_installed")
             )
-            button.setText(tr("models.installed") if installed else tr("models.download"))
+            button.setText(tr("models.download"))
+            button.setVisible(not installed)
             button.setEnabled(not installed and self.download_thread is None)
 
         missing = self._missing_model_keys()
-        self.download_all_button.setEnabled(bool(missing) and self.download_thread is None)
+        self.download_all_button.setVisible(bool(missing))
+        self.download_all_button.setEnabled(self.download_thread is None)
+        if self.download_thread is None:
+            if not missing:
+                self.close_button.setText(tr("models.close"))
+            else:
+                self.close_button.setText(
+                    tr("models.not_now") if self.setup_mode else tr("common.cancel")
+                )
         if not missing and self.download_thread is None:
             self.download_status.setText(tr("models.all_installed"))
 

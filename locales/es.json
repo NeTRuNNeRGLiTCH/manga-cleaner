@@ -1,6 +1,9 @@
 {
   "meta.language_name": "Español",
   "meta.language_name_english": "Spanish",
+  "localization.verification_required_title": "El catálogo de traducción necesita verificación",
+  "localization.verification_required_message": "El catálogo {language} no está verificado con la fuente inglesa actual ({reason}). La aplicación cambió al inglés durante esta sesión.",
+  "localization.verification_required_instructions": "Desde el proyecto fuente, revisa el catálogo y ejecuta:\npython tools/check_locales.py --approve locales/{language}.json",
   "models.setup_title": "Configurar modelos de IA",
   "models.manager_title": "Descarga de modelos de IA",
   "models.setup_intro": "Todavía no hay modelos de IA instalados. Descarga ahora solo los que necesites, o elige Ahora no y descárgalos más tarde al usar OCR o limpieza.",
@@ -15,6 +18,7 @@
   "models.download": "Descargar",
   "models.download_model": "Descargar modelo",
   "models.download_all": "Descargar todos los modelos faltantes",
+  "models.close": "Cerrar",
   "models.not_now": "Ahora no",
   "models.installed": "Instalado",
   "models.not_installed": "No instalado",
@@ -292,5 +296,7 @@
   "main.restart_required": "Se requiere reiniciar",
   "main.language_restart_message": "Idioma seleccionado: {selected}\nIdioma activo en esta sesión: {active}.\n\nReinicia Manga Cleaner Studio para aplicar el idioma seleccionado.",
   "main.language_setting_error": "Error en la configuración del idioma",
-  "main.language_save_failed": "No se pudo guardar la preferencia de idioma. Comprueba que la aplicación pueda escribir en su carpeta de configuración."
+  "main.language_save_failed": "No se pudo guardar la preferencia de idioma. Comprueba que la aplicación pueda escribir en su carpeta de configuración.",
+  "meta.translation_status": "Verified and approved for use in Manga Cleaner Studio",
+  "meta.translation_source_sha256": "cf67c04a3919973fed7ece544a31223ede85bdf3ec6d06f28e84dd792b4334f8"
 }

@@ -8,7 +8,7 @@
 [![Downloads](https://img.shields.io/github/downloads/NeTRuNNeRGLiTCH/manga-cleaner/total?color=blue&style=for-the-badge)](https://github.com/NeTRuNNeRGLiTCH/manga-cleaner/releases)
 [![Sibling App](https://img.shields.io/badge/Sibling_Project-Manga_Translate-ff007f?style=for-the-badge)](https://github.com/santiagodvergara05-debug/manga-translate-studio)
 
-**Manga Cleaner Studio** is a desktop toolkit for preparing manga and webtoon pages. It combines AI-assisted image cleanup and manual mask editing with OCR and transparency scanning, text placement and styling, script synchronization, and lossless vertical stitching. Its multi-language interface includes English, Spanish, Brazilian Portuguese, French, and Egyptian Arabic catalogs, with English fallback for untranslated text. You can add more languages ​​by submitting a PR and checking [`TRANSLATION.md`](TRANSLATION.md).
+**Manga Cleaner Studio** is a desktop toolkit for preparing manga and webtoon pages. It combines AI-assisted image cleanup and manual mask editing with OCR and transparency scanning, text placement and styling, script synchronization, and lossless vertical stitching. The interface supports multiple languages. See [`TRANSLATION.md`](TRANSLATION.md) for available languages, localization status, and the catalog workflow.
 
 ---
 
@@ -166,7 +166,7 @@ Image 2 [002.jpg]
 
 ### Python version
 
-- **v3.4.0:** Multi-language UI foundation with English fallback, a language selector, and community-maintained locale catalogs. Current catalogs include English, Spanish, Brazilian Portuguese, French, and Egyptian Arabic; some help content may still fall back to English.
+- **v3.4.0:** Multi-language UI foundation with English fallback, a language selector, and community-maintained locale catalogs. See [`TRANSLATION.md`](TRANSLATION.md) for language support details.
 - **v3.5.0 (under investigation):** Potential watermark-removal support using an AI model, subject to implementation feasibility and attribution to the model developer.
 
 The Python roadmap may change if development of the C++ version progresses faster than expected.
@@ -239,12 +239,16 @@ Interested in contributing code, models, or optimizations? Please review **[CONT
 ```text
 manga-cleaner/
 ├── assets/                         # Application icons and bundled UI assets
-├── locales/                        # Language catalogs and language index
+├── .github/
+│   └── workflows/
+│       └── build.yml               # Validates locale approvals before release builds
+├── locales/                        # Multi-language catalogs and language index (see TRANSLATION.md)
 │   ├── ar-EG.json                  # Egyptian Arabic
-│   ├── en.json                     # English source catalog and fallback
+│   ├── en.json                     # English source catalog and recovery language
 │   ├── es.json                     # Spanish
 │   ├── fr.json                     # French
-│   ├── index.json                  # Language names used during startup
+│   ├── index.json                  # Language names and verification fingerprints
+│   ├── ko.json                     # Korean
 │   └── pt-BR.json                  # Brazilian Portuguese
 ├── src/
 │   ├── backend/                    # Image processing, AI, batch, and export logic
@@ -271,14 +275,14 @@ manga-cleaner/
 │   └── utils/                      # Configuration, localization, paths, and logging
 │       ├── config.py               # Application constants and settings
 │       ├── history.py              # Undo and redo history
-│       ├── i18n.py                 # JSON localization engine
+│       ├── i18n.py                 # Single-catalog loader and verification checks
 │       ├── logger.py               # Application logging
 │       ├── paths.py                # Runtime and resource path handling
 │       └── system_info.py          # System and hardware monitoring
 ├── tests/
-│   └── test_i18n.py                # Localization behavior tests
-├── tools/                          # Locale extraction, migration, and validation helpers
-│   ├── check_locales.py            # Validate catalogs and placeholders
+│   └── test_i18n.py                # Catalog loading, approval, and fingerprint tests
+├── tools/                          # Localization extraction, migration, and validation
+│   ├── check_locales.py            # Compare, complete, approve, and release-check catalogs
 │   ├── extract_strings.py          # Find visible strings in the source
 │   ├── fix_leftovers.py            # Apply reviewed one-time migration fixes
 │   └── migrate_to_tr.py            # Migrate visible text to translation calls
@@ -286,8 +290,11 @@ manga-cleaner/
 ├── CONTRIBUTING.md                 # Development and contribution guidelines
 ├── LICENSE                         # Apache 2.0 license
 ├── main.py                         # Application entry point
-├── MangaCleaner_CPU*.spec          # PyInstaller CPU build specifications
-├── MangaCleaner_GPU*.spec          # PyInstaller GPU build specifications
+├── MangaCleaner_CPU.spec           # Windows CPU PyInstaller build
+├── MangaCleaner_CPU_clean.spec     # Minimal Windows CPU PyInstaller build
+├── MangaCleaner_CPU_linux.spec     # Linux CPU PyInstaller build
+├── MangaCleaner_GPU.spec           # Windows GPU PyInstaller build
+├── MangaCleaner_GPU_linux.spec     # Linux GPU PyInstaller build
 ├── README.md                       # Project overview and setup instructions
 ├── requirements.txt                # Windows and general Python dependencies
 ├── requirements_linux.txt          # Linux Python dependencies
