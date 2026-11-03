@@ -13,7 +13,7 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[('assets', 'assets'), ('src', 'src')],
+    datas=[('assets', 'assets'), ('src', 'src'), ('locales', 'locales')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

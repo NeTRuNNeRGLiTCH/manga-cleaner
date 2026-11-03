@@ -10,7 +10,7 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[('assets', 'assets'), ('src', 'src')], # Put this back
+    datas=[('assets', 'assets'), ('src', 'src'), ('locales', 'locales')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -36,6 +36,7 @@ forbidden_keywords = [
     'qtvirtualkeyboardplugin',
     
     # Strip PySide6 Language Translations (100+ .qm files)
+    # Note: Does not affect our custom 'locales/' directory
     'translations',
     
     # Strip PyWin32 UI components (We only need headless COM interop)
@@ -91,4 +92,3 @@ coll = COLLECT(
     upx_exclude=[],
     name='MangaCleaner_CPU',
 )
-

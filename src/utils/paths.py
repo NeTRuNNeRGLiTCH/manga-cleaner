@@ -8,7 +8,7 @@ import sys
 class Paths:
     if getattr(sys, 'frozen', False):
         BASE_DIR = os.path.dirname(sys.executable)
-        BUNDLE_DIR = getattr(sys, '_MEIPASS', BASE_DIR) # Points specifically to the _internal folder
+        BUNDLE_DIR = getattr(sys, '_MEIPASS', BASE_DIR)  # Points specifically to the _internal folder
     else:
         BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
         BUNDLE_DIR = BASE_DIR
@@ -19,6 +19,10 @@ class Paths:
     PROCESSED = os.path.join(BASE_DIR, "processed")
     TRANSLATIONS = os.path.join(BASE_DIR, "translations")
     ASSETS = os.path.join(BUNDLE_DIR, "assets")
+
+    # Localization directories
+    LOCALES_USER = os.path.join(BASE_DIR, "locales")        # Next to executable: community translations
+    LOCALES_BUNDLED = os.path.join(BUNDLE_DIR, "locales")  # Inside bundle: packaged defaults
 
     @staticmethod
     def initialize():

@@ -20,19 +20,21 @@ By submitting a Pull Request, you agree that your contributions will be licensed
 1. **Fork the repository** on GitHub.
 2. **Clone your fork** locally:
    ```bash
-   git clone [https://github.com/NeTRuNNeRGLiTCH/manga-cleaner.git](https://github.com/NeTRuNNeRGLiTCH/manga-cleaner.git)
+   git clone https://github.com/YOUR-USERNAME/manga-cleaner.git
    cd manga-cleaner
+   ```
+
 3. **Create and activate a virtual environment:**
 ```bash
-# Windows
-python -m venv venv
-.\venv\Scripts\activate
+   # Windows
+   python -m venv venv
+   .\venv\Scripts\activate
 
-# Linux / macOS
-python3 -m venv venv
-source venv/bin/activate
+   # Linux / macOS
+   python3 -m venv venv
+   source venv/bin/activate
 
-```
+   ```
 
 
 4. **Install runtime dependencies:**
@@ -41,9 +43,9 @@ pip install -r requirements.txt
 ```
 
 
-*(For Linux GPU development, use `pip install -r requirements_linux_gpu.txt`)*
+*(For Linux development, use `pip install -r requirements_linux.txt`.)*
 
-5. **Download the models:** Extract `models.zip` into the root repository directory prior to launching.
+5. **Download AI models when needed:** Launch the application and use the first-run model setup dialog, or open **AI Models** from the toolbar. The downloader saves models from the configured Hugging Face repository into the `models/` directory. No `models.zip` is required.
 
 ---
 
@@ -51,47 +53,58 @@ pip install -r requirements.txt
 
 These instructions are intended for developers compiling standalone binary releases from source. Verify that your platform dependencies match the target build.
 
-### 1. Windows Compilation (PyInstaller)
+### Native PyInstaller builds
 
-```cmd
-python -m venv venv
-.\venv\Scripts\activate
-pip install -r requirements.txt pyinstaller
-pyinstaller MangaCleaner_CPU_clean.spec --noconfirm --clean
+Use Python 3.12 and build on the target operating system: Windows builds must run on Windows, and Linux builds must run on Linux. PyInstaller does not cross-compile between these platforms. Linux builds may run inside a properly configured Linux container or virtual machine.
 
+Install the project dependencies for the selected platform. `build.py` checks for PyInstaller and installs the release-pinned version (`6.18.0`) into the active Python environment if it is missing; this requires an internet connection. The build tool is not added to the application's runtime requirements.
+
+For Linux GPU builds, install `requirements_linux.txt`. Before a Windows GPU build, install the CUDA DLL packages used by the release workflow:
+
+```powershell
+python -m pip install nvidia-cuda-runtime-cu12 nvidia-cudnn-cu12 nvidia-cublas-cu12 nvidia-cufft-cu12 nvidia-curand-cu12
 ```
 
-Copy the `models/` directory into the generated application's expected folder as configured in the spec file.
-
-### 2. Linux Compilation (Docker)
+On Linux, `bash build.sh` provides an interactive CPU/GPU selector and creates a separate Python 3.12 build environment for each variant. Install the required system libraries first (Debian/Ubuntu example):
 
 ```bash
-docker run --rm -v "$(pwd):/workspace" -w /workspace python:3.12-bookworm bash -c "
-  apt-get update && apt-get install -y libgl1 libglib2.0-0 zip
-  python -m venv venv
-  source venv/bin/activate
-  pip install -r requirements_linux_gpu.txt pyinstaller
-  pyinstaller --clean --noconfirm MangaCleaner_GPU_linux.spec
-  chown -R $(id -u):$(id -g) dist/ build/
-"
-
+sudo apt-get install python3.12-venv libgl1 libglib2.0-0 libegl1 libxkbcommon-x11-0 libdbus-1-3
+bash build.sh
 ```
+
+You can also run `bash build.sh cpu`, `bash build.sh gpu`, or `bash build.sh all`. The script installs Python dependencies and PyInstaller in its isolated build environments; it does not run `sudo` or install system packages itself.
+
+Run the unified selector to choose a native target:
+
+```bash
+python build.py
+```
+
+The selector can also be used from a terminal or automation:
+
+```bash
+python build.py --list
+python build.py --target windows-cpu-clean
+python build.py --all
+```
+
+Target names are `windows-cpu`, `windows-cpu-clean`, `windows-gpu`, `linux-cpu`, and `linux-gpu`. Only targets for the current operating system are offered. Each target retains its specialized `.spec` file and uses separate `build/<target>/` and `dist/<target>/` directories. Windows GPU builds also copy installed CUDA DLLs into the package. ONNX model weights are downloaded by the application at runtime and must not be copied into the build output.
 
 ---
 
 ## 🌿 Git Branching Strategy
 
-To keep the repository clean and avoid merge conflicts with upstream:
+Before creating a branch, check the repository's current development branch and contribution instructions. The target branch may differ by release line; do not assume that `main` is the correct target for every change. Do not commit directly to a protected production branch.
 
-* **`main`**: Production-ready code matching active public releases. Do **not** commit directly to `main`.
-* **Feature Branches**: Branch off from `main` using descriptive names:
+* **Target branch**: The branch specified by the maintainers for the feature or release line.
+* **Feature branches**: Use descriptive names:
 * `feat/<feature-name>` for new workspaces, UI modules, or AI pipelines.
 * `fix/<bug-description>` for bug patches and stability adjustments.
 * `refactor/<module>` for performance refactoring or cleanups.
 
 ```bash
-git checkout main
-git pull upstream main
+git checkout YOUR-TARGET-BRANCH
+git pull upstream YOUR-TARGET-BRANCH
 git checkout -b fix/text-gizmo-sensitivity
 
 ```
@@ -116,7 +129,23 @@ git checkout -b fix/text-gizmo-sensitivity
 
 * Enforce **NFC normalization** (`unicodedata.normalize("NFC", text)`) when handling image filenames or dialogue strings to ensure consistent cross-platform behavior between Windows, Linux, and macOS.
 
-### 4. Code Quality & Formatting
+### 4. UI Localization
+
+All new or changed user-visible text must use the localization system. Do not hard-code UI text in Python widgets, dialogs, tooltips, status messages, notifications, or help content, and do not use `print()` to show application messages to users.
+
+* Add new user-visible strings and keys to `locales/en.json` only. This is the original source catalog and must remain in the project. If it is missing, startup displays a critical warning; restore it from a clean source checkout.
+* Use `tr("area.key")` for normal UI text and named placeholders such as `tr("area.saved_to", path=path)` for dynamic values. Preserve placeholder names in every locale.
+* Keep internal IDs, file formats, paths, enum values, and values used by program logic stable and separate from translated labels. Use `tr_label()` for tool/category IDs and `QComboBox` item data (`addItem(label, stable_id)` / `currentData()`) when a combo selection is used by code.
+* Translate HTML/help content through catalog keys too. Preserve HTML structure, keyboard shortcut letters, and any literal tokens that users must enter.
+* After changing `en.json`, run `python tools/check_locales.py --approve`. For each locale missing keys, the tool offers to copy English source values into it. This keeps catalogs complete but does not translate the copied text; translators or translation models can localize those values later.
+* For a new language, an LLM with context from reviewing the codebase can generate the complete `locales/<code>.json` from `locales/en.json`; manual line-by-line translation is not required. Preserve every key, named placeholder, shortcut, and required markup, and provide the catalog's English and native language names. Then run `python tools/check_locales.py --approve locales/<code>.json`. The tool copies display names into `locales/index.json` and writes verification markers and fingerprints; do not create or edit those values manually. See [`TRANSLATION.md`](TRANSLATION.md) for a reusable LLM prompt and the review requirements.
+* Any change to `en.json` invalidates prior secondary-catalog approvals. Run `python tools/check_locales.py --approve` across all locales before building. `python tools/check_locales.py --release` is also required by the release workflow. `python tools/extract_strings.py` can help find hard-coded UI strings, but its report requires human review.
+* The verifier checks key coverage, named placeholders, and fingerprints. It cannot judge translation quality. LLM generation or structural approval does not count as a human language audit; mark a catalog as not audited until a fluent reviewer checks it. Structurally valid catalogs can still contain English values where translation is pending.
+* Run the relevant UI flow in at least one translated locale and in English when practical. Confirm that labels remain visible and controls still use their stable internal values.
+
+See [`TRANSLATION.md`](TRANSLATION.md) for the catalog format, runtime behavior, and detailed translation workflow.
+
+### 5. Code Quality & Formatting
 
 * Write clean, self-documenting code.
 * Keep internal code comments and docstrings in **English**.
@@ -171,3 +200,5 @@ git push -u origin <your-branch-name>
 ## 💬 Community & Questions
 
 If you encounter bugs, have suggestions, or want to discuss upcoming roadmap milestones, please open an **Issue** on GitHub.
+
+For user-facing text and language catalogs, follow [`TRANSLATION.md`](TRANSLATION.md). New UI text must be added to `locales/en.json` and accessed through the localization API; do not introduce hard-coded display strings.
