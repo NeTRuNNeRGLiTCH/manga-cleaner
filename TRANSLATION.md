@@ -196,7 +196,7 @@ The table below records the localization contributors and review status for the 
 | Language | Localization credits | Audited | Manga Cleaner version |
 |---|---|---|---|
 | English (English) | Original source catalog | N/A — source language | 3.4.2 |
-| Spanish (Español) | LLM ChatGPT | SI —  Santiagodvergara05-debug | 3.4.2 |
+| Spanish (Español) | LLM ChatGPT | YES —  Santiagodvergara05-debug | 3.4.2 |
 | Portuguese (Brasil) | LLM ChatGPT | No — review pending | 3.4.2 |
 | French (Français) | LLM ChatGPT | No — review pending | 3.4.2 |
 | Arabic (Egypt) (العربية (مصر)) | LLM ChatGPT | No — review pending | 3.4.2 |

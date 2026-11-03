@@ -166,7 +166,6 @@ Image 2 [002.jpg]
 
 ### Python version
 
-- **v3.4.0:** Multi-language UI foundation with English fallback, a language selector, and community-maintained locale catalogs. See [`TRANSLATION.md`](TRANSLATION.md) for language support details.
 - **v3.5.0 (under investigation):** Potential watermark-removal support using an AI model, subject to implementation feasibility and attribution to the model developer.
 
 The Python roadmap may change if development of the C++ version progresses faster than expected.
