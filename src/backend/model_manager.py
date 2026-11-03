@@ -11,7 +11,7 @@ from src.utils.i18n import tr
 from src.utils.paths import Paths
 
 
-MODEL_REPO_ID = "SVD-MKU-DEV/manga-cleaner-models"
+MODEL_REPO_ID = "manga-cleaner-dev/manga-cleaner-models"
 MODEL_REPO_REVISION = "main"
 
 MODEL_SPECS = {
