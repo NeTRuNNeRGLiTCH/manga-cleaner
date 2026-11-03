@@ -1,8 +1,8 @@
-# 🌌 MANGA CLEANER STUDIO v3.4.2
+# 🌌 MANGA CLEANER STUDIO v3.4.3
 
 **AI-assisted manga and webtoon cleanup, typesetting, translation workflow, and page assembly.**
 
-[![Download v3.4.2](https://img.shields.io/badge/DOWNLOAD-v3.4.2-00d4ff?style=for-the-badge&logo=github)](https://github.com/NeTRuNNeRGLiTCH/manga-cleaner/releases)
+[![Download v3.4.3](https://img.shields.io/badge/DOWNLOAD-v3.4.3-00d4ff?style=for-the-badge&logo=github)](https://github.com/NeTRuNNeRGLiTCH/manga-cleaner/releases)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=for-the-badge)](https://opensource.org/licenses/Apache-2.0)
 [![Python Version](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-blue?style=for-the-badge)](https://www.python.org/)
 [![Downloads](https://img.shields.io/github/downloads/NeTRuNNeRGLiTCH/manga-cleaner/total?color=blue&style=for-the-badge)](https://github.com/NeTRuNNeRGLiTCH/manga-cleaner/releases)
@@ -30,7 +30,7 @@ Prefer a visual guide? Watch the video walkthrough:
 
 [![Watch the Video Tutorial](https://img.youtube.com/vi/9psnwpJG3aE/hqdefault.jpg)](https://www.youtube.com/watch?v=9psnwpJG3aE)
 
-*Note: The tutorial was recorded using version 3.2.0. The current 3.4.0 interface and features may differ; use the sections below as the up-to-date reference.*
+*Note: The tutorial was recorded using version 3.2.0. The current 3.4.3 interface and features may differ; use the sections below as the up-to-date reference.*
 
 ---
 
