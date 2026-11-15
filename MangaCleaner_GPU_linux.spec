@@ -3,14 +3,20 @@
 from PyInstaller.utils.hooks import collect_all
 from importlib.util import find_spec
 
-# NVIDIA CUDA 13 packages used by ONNX Runtime 1.29
+# 1. PYTHON MODULE EXCLUDES
+block_list = [
+    'tkinter', 'unittest', 'pydoc', 'xmlrpc', 
+    'matplotlib', 'scipy', 'PyQt5', 'PyQt6', 'IPython',
+    'win32com', 'winreg', 'pywin32'
+]
+
+# NVIDIA CUDA packages used by ONNX Runtime
 nvidia_package_candidates = {
     'nvidia-cublas': ['nvidia.cublas', 'nvidia_cublas'],
     'nvidia-cuda-nvrtc': ['nvidia.cuda_nvrtc', 'nvidia_cuda_nvrtc'],
     'nvidia-cuda-runtime': ['nvidia.cuda_runtime', 'nvidia_cuda_runtime'],
-    'nvidia-cudnn-cu13': ['nvidia.cudnn'],
+    'nvidia-cudnn': ['nvidia.cudnn', 'nvidia_cudnn'],
     'nvidia-cufft': ['nvidia.cufft', 'nvidia_cufft'],
-    'nvidia-curand': ['nvidia.curand', 'nvidia_curand'],
     'nvidia-nvjitlink': ['nvidia.nvjitlink', 'nvidia_nvjitlink'],
 }
 
@@ -50,50 +56,60 @@ if missing_nvidia_packages:
 a = Analysis(
     ['main.py'],
     pathex=[],
-
     binaries=nvidia_binaries,
-
     datas=[
         ('assets', 'assets'),
-        ('src', 'src'),
         ('locales', 'locales'),
     ] + nvidia_datas,
-
     hiddenimports=[
         'onnxruntime',
         'onnxruntime.capi',
         'onnxruntime.capi.onnxruntime_pybind11_state',
         'PySide6.QtSvg',
     ] + nvidia_hiddenimports,
-
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=block_list,
     noarchive=False,
-    optimize=0,
+    optimize=1,
 )
 
-# Keep CUDA/TensorRT providers!
-# Only remove unused Qt components.
+# 2. BLOAT FILTER
 forbidden_keywords = [
-    'libQt6OpenGL',
-    'libQt6Pdf',
-    'libQt6Qml',
-    'libQt6Quick',
-    'libQt6VirtualKeyboard',
+    # Strip TensorRT provider (saves ~30MB and avoids missing TensorRT error)
+    'libonnxruntime_providers_tensorrt',
+    
+    # Strip Heavy Unused PySide6 Modules
+    'libqt6opengl',
+    'libqt6pdf',
+    'libqt6qml',
+    'libqt6quick',
+    'libqt6virtualkeyboard',
     'translations',
+
+    # Strip Unused CUDA / cuDNN bloat
+    'libcudnn_adv',       # RNN / Attention module (~250MB)
+    'libcurand',          # Random number generator (~80MB)
+    'libnvblas',          # NVBLAS (~10MB)
 ]
 
-a.binaries = [
-    b for b in a.binaries
-    if not any(k.lower() in b[0].lower() for k in forbidden_keywords)
-]
+filtered_binaries = []
+for b in a.binaries:
+    dest_path = b[0].lower()
+    if not any(kw.lower() in dest_path for kw in forbidden_keywords):
+        filtered_binaries.append(b)
+a.binaries = filtered_binaries
 
-a.datas = [
-    d for d in a.datas
-    if not any(k.lower() in d[0].lower() for k in forbidden_keywords)
-]
+filtered_datas = []
+for d in a.datas:
+    dest_path = d[0].lower()
+    # Strip development headers, cmake scripts, and pkgconfig
+    if any(dest_path.endswith(ext) for ext in ('.h', '.hpp', '.cmake', '.pc', '.a')):
+        continue
+    if not any(kw.lower() in dest_path for kw in forbidden_keywords):
+        filtered_datas.append(d)
+a.datas = filtered_datas
 
 pyz = PYZ(a.pure)
 

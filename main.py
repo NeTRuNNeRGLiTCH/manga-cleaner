@@ -63,16 +63,19 @@ def main():
     logger.info(f"--- {Config.APP_NAME.upper()} STARTUP ---")
 
     # 4. Inject Theme Styles
-    # PyInstaller hides bundled files in an internal folder. sys._MEIPASS safely locates it.
-    if getattr(sys, 'frozen', False):
-        bundle_dir = sys._MEIPASS
-    else:
-        bundle_dir = Paths.BASE_DIR
+    # Check both the application root directory (beside the executable) and sys._MEIPASS (_internal)
+    base_dir = Paths.BASE_DIR
+    internal_dir = getattr(sys, '_MEIPASS', base_dir)
 
-    icon_path = os.path.join(bundle_dir, "assets", "icon.ico")
+    icon_path = os.path.join(base_dir, "assets", "icon.ico")
+    if not os.path.exists(icon_path):
+        icon_path = os.path.join(internal_dir, "assets", "icon.ico")
     if os.path.exists(icon_path):
         app.setWindowIcon(QIcon(icon_path))
-    qss_path = os.path.join(bundle_dir, "src", "frontend", "styles.qss")
+
+    qss_path = os.path.join(base_dir, "src", "frontend", "styles.qss")
+    if not os.path.exists(qss_path):
+        qss_path = os.path.join(internal_dir, "src", "frontend", "styles.qss")
 
     if os.path.exists(qss_path):
         try:

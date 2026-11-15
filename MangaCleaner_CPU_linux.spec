@@ -13,7 +13,7 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[('assets', 'assets'), ('src', 'src'), ('locales', 'locales')],
+    datas=[('assets', 'assets'), ('locales', 'locales')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -26,15 +26,25 @@ a = Analysis(
 # 2. LINUX SHARED LIBRARY (.so) FILTER
 forbidden_keywords = [
     # Strip ONNX GPU Providers for CPU build
-    'libonnxruntime_providers_cuda.so',
-    'libonnxruntime_providers_tensorrt.so',
+    'libonnxruntime_providers_cuda',
+    'libonnxruntime_providers_tensorrt',
     
+    # Strip CUDA and cuDNN libraries for CPU build
+    'cublas',
+    'cufft',
+    'cudart',
+    'cudnn',
+    'curand',
+    'nvrtc',
+    'nvjitlink',
+    'nvblas',
+
     # Strip Heavy Unused PySide6 Modules
-    'libQt6OpenGL',
-    'libQt6Pdf',
-    'libQt6Qml',
-    'libQt6Quick',
-    'libQt6VirtualKeyboard',
+    'libqt6opengl',
+    'libqt6pdf',
+    'libqt6qml',
+    'libqt6quick',
+    'libqt6virtualkeyboard',
     'translations',
 ]
 

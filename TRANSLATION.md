@@ -199,7 +199,7 @@ The table below records the localization contributors and review status for the 
 | Spanish (Español) | LLM ChatGPT | YES —  Santiagodvergara05-debug | 3.4.2 |
 | Portuguese (Brasil) | LLM ChatGPT | No — review pending | 3.4.2 |
 | French (Français) | LLM ChatGPT | No — review pending | 3.4.2 |
-| Arabic (Egypt) (العربية (مصر)) | LLM ChatGPT | No — review pending | 3.4.2 |
+| Arabic (العربية) | LLM ChatGPT | YES — NeTRuNNeRGLiTCH | 3.4.3 |
 | Korean (한국어) | LLM Gemini | No — review pending | 3.4.2 |
 | Japanese (日本語) | LLM Gemini | No — review pending | 3.4.2 |
 | Simplified Chinese (简体中文) | LLM Gemini | No — review pending | 3.4.2 |

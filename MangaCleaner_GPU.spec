@@ -1,5 +1,11 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+# 1. PYTHON EXCLUDES
+block_list = [
+    'tkinter', 'unittest', 'pydoc', 'xmlrpc', 
+    'matplotlib', 'scipy', 'PyQt5', 'PyQt6', 'IPython'
+]
+
 a = Analysis(
     ['main.py'],
     pathex=[],
@@ -20,10 +26,54 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=block_list,
     noarchive=False,
-    optimize=0,
+    optimize=1,
 )
+
+# 2. BLOAT FILTER
+forbidden_keywords = [
+    # Strip TensorRT provider (saves ~25MB and avoids missing DLL warning)
+    'onnxruntime_providers_tensorrt',
+    
+    # Strip Heavy Unused PySide6 Modules
+    'opengl32sw',
+    'qt6opengl',
+    'qt6pdf',
+    'qt6qml',
+    'qt6quick',
+    'qt6virtualkeyboard',
+    'qtvirtualkeyboardplugin',
+    
+    # Strip PySide6 Language Translations (100+ .qm files)
+    'translations',
+    
+    # Strip PyWin32 UI components
+    'pythonwin',
+    'win32ui',
+
+    # Strip unused NVIDIA compiler / JIT / RNG / RNN libraries
+    'nvrtc',
+    'nvjitlink',
+    'curand',
+    'cudnn_adv',
+    'nvblas',
+]
+
+filtered_binaries = []
+for b in a.binaries:
+    dest_path = b[0].lower()
+    if not any(kw.lower() in dest_path for kw in forbidden_keywords):
+        filtered_binaries.append(b)
+a.binaries = filtered_binaries
+
+filtered_datas = []
+for d in a.datas:
+    dest_path = d[0].lower()
+    if not any(kw.lower() in dest_path for kw in forbidden_keywords):
+        filtered_datas.append(d)
+a.datas = filtered_datas
+
 pyz = PYZ(a.pure)
 
 exe = EXE(

@@ -2,14 +2,17 @@ name: Build and Release All Flavors (Windows & Linux)
 
 on:
   push:
+    branches:
+      - main
+      - python-main
     tags:
-      - 'v*' # Triggers when pushing tags like v3.2.0
+      - 'v*'
   workflow_dispatch:
     inputs:
       version_tag:
-        description: 'Release Tag (e.g. v3.2.0)'
-        required: true
-        default: 'v3.2.0'
+        description: 'Release Tag (e.g. v3.4.3)'
+        required: false
+        default: 'v3.4.3'
 
 permissions:
   contents: write
@@ -28,32 +31,30 @@ jobs:
           # 1. Windows GPU
           - target: Windows-GPU
             os: windows-latest
-            spec: MangaCleaner_GPU.spec
+            target_id: windows-gpu
             is_gpu: true
+            bundle: MangaCleaner_GPU
 
           # 2. Windows CPU
           - target: Windows-CPU
             os: windows-latest
-            spec: MangaCleaner_CPU.spec
+            target_id: windows-cpu
             is_gpu: false
+            bundle: MangaCleaner_CPU
 
-          # 3. Windows CPU Clean
-          - target: Windows-CPU-Clean
-            os: windows-latest
-            spec: MangaCleaner_CPU_clean.spec
-            is_gpu: false
-
-          # 4. Linux CPU
+          # 3. Linux CPU
           - target: Linux-CPU
             os: ubuntu-latest
-            spec: MangaCleaner_CPU_linux.spec
+            target_id: linux-cpu
             is_gpu: false
+            bundle: MangaCleaner_CPU
 
-          # 5. Linux GPU
+          # 4. Linux GPU
           - target: Linux-GPU
             os: ubuntu-latest
-            spec: MangaCleaner_GPU_linux.spec
+            target_id: linux-gpu
             is_gpu: true
+            bundle: MangaCleaner_GPU
 
     steps:
       - name: Checkout Code
@@ -65,7 +66,7 @@ jobs:
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
             echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
           else
-            echo "VERSION=${{ github.event.inputs.version_tag || 'v3.2.0' }}" >> $GITHUB_ENV
+            echo "VERSION=${{ github.event.inputs.version_tag || 'v3.4.3' }}" >> $GITHUB_ENV
           fi
 
       # --- Linux System Dependencies ---
@@ -73,7 +74,24 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgl1 libegl1 libxkbcommon-x11-0 libdbus-1-3 p7zip-full
+          sudo apt-get install -y \
+            libgl1 \
+            libegl1 \
+            libdbus-1-3 \
+            libxkbcommon-x11-0 \
+            libxkbcommon0 \
+            libxcb-cursor0 \
+            libxcb-xinerama0 \
+            libxcb-icccm4 \
+            libxcb-image0 \
+            libxcb-keysyms1 \
+            libxcb-randr0 \
+            libxcb-render-util0 \
+            libxcb-shape0 \
+            libxcb-xfixes0 \
+            libxcb-xkb1 \
+            libx11-xcb1 \
+            p7zip-full
 
       # --- Python Setup ---
       - name: Setup Python 3.12
@@ -108,9 +126,8 @@ jobs:
               "nvidia-cublas": ("nvidia.cublas", "nvidia_cublas"),
               "nvidia-cuda-nvrtc": ("nvidia.cuda_nvrtc", "nvidia_cuda_nvrtc"),
               "nvidia-cuda-runtime": ("nvidia.cuda_runtime", "nvidia_cuda_runtime"),
-              "nvidia-cudnn-cu13": ("nvidia.cudnn",),
+              "nvidia-cudnn": ("nvidia.cudnn", "nvidia_cudnn"),
               "nvidia-cufft": ("nvidia.cufft", "nvidia_cufft"),
-              "nvidia-curand": ("nvidia.curand", "nvidia_curand"),
               "nvidia-nvjitlink": ("nvidia.nvjitlink", "nvidia_nvjitlink"),
           }
           missing = []
@@ -118,10 +135,11 @@ jobs:
               if not any(importlib.util.find_spec(pkg) is not None for pkg in module_candidates):
                   missing.append(f"{dependency_name} ({', '.join(module_candidates)})")
           if missing:
-              print("Missing required Linux GPU Python packages for PyInstaller collect_all():")
+              print("Missing required Linux GPU Python packages:")
               for pkg in missing:
                   print(f" - {pkg}")
               sys.exit(1)
+          print("All required Linux GPU NVIDIA packages verified.")
           PY
 
       - name: Install PyInstaller
@@ -129,41 +147,29 @@ jobs:
           python -m pip install pyinstaller==6.18.0
 
       # --- GPU Wheels (Only for Windows GPU build) ---
-      - name: Install CUDA 12 & cuDNN 9 DLL Wheels (GPU Only)
+      - name: Install CUDA 12 & cuDNN 9 DLL Wheels (Windows GPU Only)
         if: runner.os == 'Windows' && matrix.is_gpu
         run: |
           python -m pip install nvidia-cuda-runtime-cu12 nvidia-cudnn-cu12 nvidia-cublas-cu12 nvidia-cufft-cu12 nvidia-curand-cu12
 
-      # --- PyInstaller Compilation ---
-      - name: Build with PyInstaller (${{ matrix.spec }})
+      # --- Native Build with build.py ---
+      - name: Build Target (${{ matrix.target_id }})
         run: |
-          pyinstaller ${{ matrix.spec }} --noconfirm --clean
-
-      # Models are downloaded by the application into its writable models folder.
-      # Keep GPU runtime DLLs beside the Windows GPU build; they are not model weights.
-      - name: Harvest CUDA DLLs (Windows GPU)
-        if: runner.os == 'Windows' && matrix.is_gpu
-        shell: pwsh
-        run: |
-          $distSubfolder = (Get-ChildItem -Path "dist" -Directory | Select-Object -First 1).FullName
-          $sitePackages = python -c "import site; print(site.getsitepackages()[0])"
-          Get-ChildItem -Path "$sitePackages\nvidia" -Recurse -Filter "*.dll" | ForEach-Object {
-              Copy-Item $_.FullName -Destination "$distSubfolder\_internal" -Force
-          }
+          python build.py --target ${{ matrix.target_id }} --yes
 
       # --- 512 MB Split Compression ---
       - name: Compress into 512MB Multi-part Zips (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $distSubfolder = (Get-ChildItem -Path "dist" -Directory | Select-Object -First 1).FullName
+          $distSubfolder = "dist\${{ matrix.target_id }}\${{ matrix.bundle }}"
           $archiveName = "MangaCleaner-${{ env.VERSION }}-${{ matrix.target }}.zip"
           7z a -v512m $archiveName "$distSubfolder\*"
 
       - name: Compress into 512MB Multi-part Zips (Linux)
         if: runner.os == 'Linux'
         run: |
-          DIST_SUBFOLDER=$(find dist -mindepth 1 -maxdepth 1 -type d | head -n 1)
+          DIST_SUBFOLDER="dist/${{ matrix.target_id }}/${{ matrix.bundle }}"
           ARCHIVE_NAME="MangaCleaner-${{ env.VERSION }}-${{ matrix.target }}.zip"
           7z a -v512m "$ARCHIVE_NAME" "$DIST_SUBFOLDER/*"
 
@@ -182,6 +188,7 @@ jobs:
     name: Publish GitHub Release
     needs: build
     runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -192,7 +199,7 @@ jobs:
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
             echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
           else
-            echo "VERSION=${{ github.event.inputs.version_tag || 'v3.2.0' }}" >> $GITHUB_ENV
+            echo "VERSION=${{ github.event.inputs.version_tag || 'v3.4.3' }}" >> $GITHUB_ENV
           fi
 
       - name: Download All Build Artifacts

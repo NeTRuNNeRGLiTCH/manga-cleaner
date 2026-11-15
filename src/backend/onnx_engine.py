@@ -1,3 +1,5 @@
+import os
+import sys
 from src.utils.logger import logger
 
 #/////////////////////////////////#
@@ -6,10 +8,66 @@ from src.utils.logger import logger
 
 class ONNXEngine:
     def __init__(self, model_path):
+        if sys.platform == "win32":
+            import site
+            from pathlib import Path
+            search_dirs = []
+            if getattr(sys, 'frozen', False):
+                base_exe = Path(sys.executable).resolve().parent
+                search_dirs.append(base_exe)
+                search_dirs.append(base_exe / "_internal")
+                meipass = getattr(sys, '_MEIPASS', None)
+                if meipass:
+                    search_dirs.append(Path(meipass))
+            else:
+                for p in site.getsitepackages():
+                    nd = Path(p) / "nvidia"
+                    if nd.is_dir():
+                        search_dirs.extend(nd.rglob("bin"))
+            for d in search_dirs:
+                if d.is_dir():
+                    try:
+                        os.add_dll_directory(str(d))
+                    except Exception:
+                        pass
+                    os.environ["PATH"] = str(d) + os.pathsep + os.environ.get("PATH", "")
+
+        elif sys.platform.startswith("linux"):
+            from pathlib import Path
+            import ctypes
+            search_dirs = []
+            if getattr(sys, 'frozen', False):
+                base_exe = Path(sys.executable).resolve().parent
+                search_dirs.append(base_exe)
+                search_dirs.append(base_exe / "_internal")
+                meipass = getattr(sys, '_MEIPASS', None)
+                if meipass:
+                    search_dirs.append(Path(meipass))
+            else:
+                import site
+                for p in site.getsitepackages():
+                    nd = Path(p) / "nvidia"
+                    if nd.is_dir():
+                        search_dirs.extend(nd.rglob("lib"))
+            for d in search_dirs:
+                if d.is_dir():
+                    os.environ["LD_LIBRARY_PATH"] = str(d) + os.pathsep + os.environ.get("LD_LIBRARY_PATH", "")
+                    for so_path in sorted(d.rglob("*.so*")):
+                        so_name = so_path.name
+                        if any(k in so_name for k in ["libcuda", "libnvJitLink", "libnvrtc", "libcublas", "libcufft", "libcudnn"]):
+                            try:
+                                ctypes.CDLL(str(so_path), mode=ctypes.RTLD_GLOBAL)
+                            except Exception:
+                                pass
+
         import onnxruntime as ort
 
         # Preload DLLs to avoid runtime errors on Linux when using CUDA (CuBlas and CuDNN are troublesome)
-        ort.preload_dlls()
+        if hasattr(ort, "preload_dlls"):
+            try:
+                ort.preload_dlls()
+            except Exception:
+                pass
         
         providers = ort.get_available_providers()
         

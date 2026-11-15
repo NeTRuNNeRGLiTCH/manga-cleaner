@@ -10,7 +10,7 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[('assets', 'assets'), ('src', 'src'), ('locales', 'locales')],
+    datas=[('assets', 'assets'), ('locales', 'locales')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -26,6 +26,16 @@ forbidden_keywords = [
     'onnxruntime_providers_cuda',
     'onnxruntime_providers_tensorrt',
     
+    # Strip CUDA and cuDNN libraries for CPU build
+    'cublas',
+    'cufft',
+    'cudart',
+    'cudnn',
+    'curand',
+    'nvrtc',
+    'nvjitlink',
+    'nvblas',
+
     # Strip Heavy Unused PySide6 Modules
     'opengl32sw',
     'qt6opengl',

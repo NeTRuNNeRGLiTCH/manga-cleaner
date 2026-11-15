@@ -67,29 +67,64 @@ def available_targets():
     ]
 
 
+# Essential CUDA and cuDNN DLLs required for ONNX Runtime GPU inference (CNN / Inpainting / OCR)
+ESSENTIAL_GPU_DLLS = {
+    "cublas64_12.dll",
+    "cublasLt64_12.dll",
+    "cudart64_12.dll",
+    "cufft64_11.dll",
+    "cudnn64_9.dll",
+    "cudnn_cnn64_9.dll",
+    "cudnn_ops64_9.dll",
+    "cudnn_heuristic64_9.dll",
+    "cudnn_graph64_9.dll",
+    "cudnn_engines_runtime_compiled64_9.dll",
+    "cudnn_engines_tensor_ir64_9.dll",
+    "cudnn_engines_precompiled64_9.dll",
+    "cudnn_ext64_9.dll",
+}
+
+
 def collect_windows_gpu_dlls(bundle_dir: Path):
-    """Copy installed NVIDIA CUDA DLLs into the Windows GPU bundle."""
-    dll_sources = []
-    for package_dir in site.getsitepackages():
-        nvidia_dir = Path(package_dir) / "nvidia"
-        if nvidia_dir.is_dir():
-            dll_sources.extend(nvidia_dir.rglob("*.dll"))
-
-    if not dll_sources:
-        raise RuntimeError(
-            "No NVIDIA CUDA DLLs were found in this Python environment. "
-            "Install the Windows GPU dependencies listed in README.md, then retry."
-        )
-
+    """Copy essential NVIDIA CUDA and cuDNN DLLs beside the executable and into _internal."""
     internal_dir = bundle_dir / "_internal"
     if not internal_dir.is_dir():
         raise RuntimeError(
             f"PyInstaller's bundle support directory was not found: {internal_dir}"
         )
 
-    for source in dll_sources:
-        shutil.copy2(source, internal_dir / source.name)
-    print(f"Copied {len(dll_sources)} CUDA DLL(s) into {internal_dir}")
+    found_dlls = {}
+    for package_dir in site.getsitepackages():
+        nvidia_dir = Path(package_dir) / "nvidia"
+        if nvidia_dir.is_dir():
+            for dll_path in nvidia_dir.rglob("*.dll"):
+                found_dlls[dll_path.name.lower()] = dll_path
+
+    if not found_dlls:
+        raise RuntimeError(
+            "No NVIDIA CUDA DLLs were found in this Python environment. "
+            "Install the Windows GPU dependencies listed in README.md, then retry."
+        )
+
+    # Filter to essential DLLs, discarding bloat (NVRTC, cuRAND, cuDNN Adv, JIT linkers)
+    copied_count = 0
+    for essential_name in ESSENTIAL_GPU_DLLS:
+        source = found_dlls.get(essential_name.lower())
+        if source and source.is_file():
+            # Place directly beside MangaCleaner_GPU.exe
+            shutil.copy2(source, bundle_dir / source.name)
+            # Remove from _internal if already present to avoid duplicating 2GB of binaries
+            internal_copy = internal_dir / source.name
+            if internal_copy.exists():
+                internal_copy.unlink()
+            copied_count += 1
+        else:
+            print(f"[WARN] Essential GPU DLL not found: {essential_name}")
+
+    print(
+        f"Placed {copied_count} essential CUDA/cuDNN DLL(s) directly beside the application executable "
+        f"in {bundle_dir}"
+    )
 
 
 def build_target(target_id, target, accept_overwrite=False):
@@ -127,6 +162,26 @@ def build_target(target_id, target, accept_overwrite=False):
     if result.returncode != 0:
         print(f"[ERROR] {target['label']} build failed (exit code {result.returncode}).")
         return False
+
+    # Move src directory directly beside the executable
+    src_source = ROOT / "src"
+    src_target = bundle_dir / "src"
+    if src_source.is_dir():
+        if src_target.exists():
+            shutil.rmtree(src_target)
+        shutil.copytree(src_source, src_target)
+        internal_src = bundle_dir / "_internal" / "src"
+        if internal_src.exists():
+            shutil.rmtree(internal_src)
+        print(f"Placed src/ directly beside the executable in {bundle_dir}")
+
+    # Ensure locales directory is also beside the executable for user customizations
+    locales_source = ROOT / "locales"
+    locales_target = bundle_dir / "locales"
+    if locales_source.is_dir():
+        if locales_target.exists():
+            shutil.rmtree(locales_target)
+        shutil.copytree(locales_source, locales_target)
 
     if target_id == "windows-gpu":
         try:
